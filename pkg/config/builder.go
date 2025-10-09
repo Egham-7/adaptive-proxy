@@ -225,35 +225,35 @@ func (pb *ProviderBuilder) Build() models.ProviderConfig {
 	}
 }
 
-// AddProvider adds a provider to specific endpoints.
-// endpoints: list of endpoint names ("chat_completions", "messages", "select_model", "generate", "count_tokens")
-// If no endpoints specified, defaults to "chat_completions".
-func (b *Builder) AddProvider(name string, cfg models.ProviderConfig, endpoints ...string) *Builder {
-	// If no endpoints specified, add to chat_completions by default
-	if len(endpoints) == 0 {
-		endpoints = []string{"chat_completions"}
-	}
+// AddOpenAICompatibleProvider adds a provider using OpenAI-compatible API (chat/completions).
+// Automatically registers the provider to chat_completions endpoint.
+// name: provider identifier (e.g., "openai", "groq", "deepseek")
+// cfg: provider configuration (API key, base URL, etc.)
+func (b *Builder) AddOpenAICompatibleProvider(name string, cfg models.ProviderConfig) *Builder {
+	b.cfg.Endpoints.ChatCompletions.Providers[name] = cfg
+	b.enabledEndpoints["chat_completions"] = true
+	return b
+}
 
-	for _, endpoint := range endpoints {
-		switch endpoint {
-		case "chat_completions":
-			b.cfg.Endpoints.ChatCompletions.Providers[name] = cfg
-			b.enabledEndpoints["chat_completions"] = true
-		case "messages":
-			b.cfg.Endpoints.Messages.Providers[name] = cfg
-			b.enabledEndpoints["messages"] = true
-		case "select_model":
-			b.cfg.Endpoints.SelectModel.Providers[name] = cfg
-			b.enabledEndpoints["select_model"] = true
-		case "generate":
-			b.cfg.Endpoints.Generate.Providers[name] = cfg
-			b.enabledEndpoints["generate"] = true
-		case "count_tokens":
-			b.cfg.Endpoints.CountTokens.Providers[name] = cfg
-			b.enabledEndpoints["count_tokens"] = true
-		}
-	}
+// AddAnthropicCompatibleProvider adds a provider using Anthropic-compatible API (messages).
+// Automatically registers the provider to messages endpoint.
+// name: provider identifier (e.g., "anthropic")
+// cfg: provider configuration (API key, base URL, etc.)
+func (b *Builder) AddAnthropicCompatibleProvider(name string, cfg models.ProviderConfig) *Builder {
+	b.cfg.Endpoints.Messages.Providers[name] = cfg
+	b.enabledEndpoints["messages"] = true
+	return b
+}
 
+// AddGeminiCompatibleProvider adds a provider using Gemini-compatible API (generateContent).
+// Automatically registers the provider to generate and count_tokens endpoints.
+// name: provider identifier (e.g., "gemini", "google")
+// cfg: provider configuration (API key, base URL, etc.)
+func (b *Builder) AddGeminiCompatibleProvider(name string, cfg models.ProviderConfig) *Builder {
+	b.cfg.Endpoints.Generate.Providers[name] = cfg
+	b.cfg.Endpoints.CountTokens.Providers[name] = cfg
+	b.enabledEndpoints["generate"] = true
+	b.enabledEndpoints["count_tokens"] = true
 	return b
 }
 

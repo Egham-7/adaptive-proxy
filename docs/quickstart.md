@@ -31,9 +31,8 @@ func main() {
     // Configure proxy with OpenAI
     builder := config.New().
         Port("8080").
-        AddProvider("openai",
+        AddOpenAICompatibleProvider("openai",
             config.NewProviderBuilder(os.Getenv("OPENAI_API_KEY")).Build(),
-            "chat_completions",
         )
     
     // Start server
@@ -88,13 +87,11 @@ Make your proxy more resilient:
 
 ```go
 builder := config.New().
-    AddProvider("openai",
+    AddOpenAICompatibleProvider("openai",
         config.NewProviderBuilder(os.Getenv("OPENAI_API_KEY")).Build(),
-        "chat_completions",
     ).
-    AddProvider("anthropic",
+    AddAnthropicCompatibleProvider("anthropic",
         config.NewProviderBuilder(os.Getenv("ANTHROPIC_API_KEY")).Build(),
-        "chat_completions",
     )
 ```
 
@@ -144,9 +141,9 @@ Try all providers simultaneously, return fastest:
 import "adaptive-backend/internal/models"
 
 builder := config.New().
-    AddProvider("openai", openaiConfig, "chat_completions").
-    AddProvider("anthropic", anthropicConfig, "chat_completions").
-    AddProvider("deepseek", deepseekConfig, "chat_completions").
+    AddOpenAICompatibleProvider("openai", openaiConfig).
+    AddAnthropicCompatibleProvider("anthropic", anthropicConfig).
+    AddOpenAICompatibleProvider("deepseek", deepseekConfig).
     WithFallback(models.FallbackConfig{
         Mode:       "race",  // Try all at once
         TimeoutMs:  30000,
@@ -164,8 +161,8 @@ builder := config.New().
     AllowedOrigins("https://yourdomain.com").
     WithRateLimit(1000, 1*time.Minute).
     WithTimeout(120 * time.Second).
-    AddProvider("openai", openaiConfig, "chat_completions").
-    AddProvider("anthropic", anthropicConfig, "chat_completions")
+    AddOpenAICompatibleProvider("openai", openaiConfig).
+    AddAnthropicCompatibleProvider("anthropic", anthropicConfig)
 ```
 
 ## Troubleshooting
@@ -192,5 +189,5 @@ builder := config.New().
 ## Getting Help
 
 - 📖 **Documentation**: [Full docs](./README.md)
-- 🐛 **Issues**: [GitHub Issues](https://github.com/yourusername/adaptive-proxy/issues)
-- 💬 **Questions**: [Discussions](https://github.com/yourusername/adaptive-proxy/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/Egham-7/adaptive-proxy/issues)
+- 💬 **Questions**: [Discussions](https://github.com/Egham-7/adaptive-proxy/discussions)

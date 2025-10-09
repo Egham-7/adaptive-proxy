@@ -33,7 +33,7 @@ go mod tidy
 Clone and build:
 
 ```bash
-git clone https://github.com/yourusername/adaptive-proxy.git
+git clone https://github.com/Egham-7/adaptive-proxy.git
 cd adaptive-proxy
 go build -o adaptive-proxy cmd/api/main.go
 ```

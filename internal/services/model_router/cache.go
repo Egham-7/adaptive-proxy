@@ -40,10 +40,10 @@ func NewModelRouterCache(cfg *config.Config) (*ModelRouterCache, error) {
 	}
 
 	// Get semantic cache configuration
-	semanticCacheConfig := cfg.ModelRouter.SemanticCache
+	cacheConfig := cfg.ModelRouter.Cache
 
 	// Validate and set default threshold if invalid
-	threshold := semanticCacheConfig.SemanticThreshold
+	threshold := cacheConfig.SemanticThreshold
 	if threshold <= 0 || threshold > 1 {
 		return nil, fmt.Errorf("invalid semantic threshold %.2f; must be in (0.0, 1.0]", threshold)
 	}

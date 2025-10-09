@@ -27,13 +27,10 @@ AdaptiveProxy is a high-performance Go library that routes requests across multi
 - [Middleware](./middleware.md) - Rate limiting, timeouts, and custom middleware
 
 ### Advanced
-- [YAML Configuration](./yaml-config.md) - Using YAML files for configuration
-- [Production Guide](./production.md) - Best practices for production deployment
-- [Performance Tuning](./performance.md) - Optimization tips and benchmarks
-- [API Reference](./api-reference.md) - Complete API documentation
+- [YAML Configuration](../config.example.yml) - Using YAML files for configuration
 
 ### Examples
-- [Examples](./examples/) - Real-world usage examples
+- [Examples](../examples/) - Real-world usage examples
 
 ### Contributing
 - [Architecture](../CLAUDE.md) - System architecture and design patterns
@@ -54,13 +51,11 @@ import (
 func main() {
     // Configure proxy with OpenAI and Anthropic fallback
     builder := config.New().
-        AddProvider("openai",
+        AddOpenAICompatibleProvider("openai",
             config.NewProviderBuilder(os.Getenv("OPENAI_API_KEY")).Build(),
-            "chat_completions",
         ).
-        AddProvider("anthropic",
+        AddAnthropicCompatibleProvider("anthropic",
             config.NewProviderBuilder(os.Getenv("ANTHROPIC_API_KEY")).Build(),
-            "chat_completions",
         )
     
     // Start server
@@ -75,12 +70,8 @@ That's it! Your proxy is now running on `http://localhost:8080` with automatic f
 
 ## 🆘 Need Help?
 
-- **Questions?** Check our [FAQ](./faq.md)
-- **Issues?** See [Troubleshooting](./troubleshooting.md)
-- **Bugs?** [Open an issue](https://github.com/yourusername/adaptive-proxy/issues)
+- **Bugs?** [Open an issue](https://github.com/Egham-7/adaptive-proxy/issues)
 
 ## 📖 Next Steps
 
 1. **New to AdaptiveProxy?** Start with [Quick Start](./quickstart.md)
-2. **Migrating from another proxy?** See [Migration Guide](./migration.md)
-3. **Ready for production?** Read [Production Guide](./production.md)

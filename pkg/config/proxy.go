@@ -109,7 +109,7 @@ func (p *Proxy) Run() error {
 	}
 
 	// Welcome endpoint
-	p.app.Get("/", welcomeHandler(p.config))
+	p.app.Get("/", welcomeHandler())
 
 	// Print startup info
 	fmt.Printf("🚀 AdaptiveProxy starting on %s\n", listenAddr)
@@ -462,17 +462,17 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	}
 
 	// Create prompt caches
-	openaiPromptCache, err := createPromptCache[*cache.OpenAIPromptCache](cfg, redisClient, cache.NewOpenAIPromptCache)
+	openaiPromptCache, err := createPromptCache(cfg, redisClient, cache.NewOpenAIPromptCache)
 	if err != nil {
 		return fmt.Errorf("openAI prompt cache initialization failed: %w", err)
 	}
 
-	anthropicPromptCache, err := createPromptCache[*cache.AnthropicPromptCache](cfg, redisClient, cache.NewAnthropicPromptCache)
+	anthropicPromptCache, err := createPromptCache(cfg, redisClient, cache.NewAnthropicPromptCache)
 	if err != nil {
 		return fmt.Errorf("anthropic prompt cache initialization failed: %w", err)
 	}
 
-	geminiPromptCache, err := createPromptCache[*cache.GeminiPromptCache](cfg, redisClient, cache.NewGeminiPromptCache)
+	geminiPromptCache, err := createPromptCache(cfg, redisClient, cache.NewGeminiPromptCache)
 	if err != nil {
 		return fmt.Errorf("gemini prompt cache initialization failed: %w", err)
 	}
@@ -581,7 +581,7 @@ func createPromptCache[T any](cfg *config.Config, redisClient *redis.Client, new
 	return newFunc(redisClient, *cfg.PromptCache)
 }
 
-func welcomeHandler(cfg *config.Config) fiber.Handler {
+func welcomeHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"message":    "Welcome to AdaptiveProxy!",

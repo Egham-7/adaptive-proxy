@@ -3,10 +3,10 @@ package models
 
 // ModelRouterConfig holds configuration for the model router
 type ModelRouterConfig struct {
-	SemanticCache CacheConfig             `json:"semantic_cache" yaml:"semantic_cache"`
-	Client        ModelRouterClientConfig `json:"client" yaml:"client"`
-	CostBias      float32                 `json:"cost_bias,omitzero" yaml:"cost_bias"`
-	Models        []ModelCapability       `json:"models,omitzero"`
+	Cache    CacheConfig             `json:"cache" yaml:"cache"`
+	Client   ModelRouterClientConfig `json:"client" yaml:"client"`
+	CostBias float32                 `json:"cost_bias,omitzero" yaml:"cost_bias"`
+	Models   []ModelCapability       `json:"models,omitzero"`
 }
 
 // ModelRouterClientConfig holds client configuration for model router
