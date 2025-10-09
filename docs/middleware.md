@@ -178,7 +178,7 @@ import (
     "os"
     "time"
     
-    "adaptive-backend/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
 )
 
 func main() {
@@ -218,7 +218,7 @@ import (
     "os"
     "time"
     
-    "adaptive-backend/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
     "github.com/gofiber/fiber/v2"
 )
 

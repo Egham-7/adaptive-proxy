@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"adaptive-backend/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/gofiber/fiber/v2"

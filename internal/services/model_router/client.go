@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"adaptive-backend/internal/config"
-	"adaptive-backend/internal/models"
-	"adaptive-backend/internal/services"
-	"adaptive-backend/internal/services/circuitbreaker"
+	"github.com/Egham-7/adaptive-proxy/internal/config"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services"
+	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
 
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/golang-jwt/jwt/v5"
@@ -100,7 +100,7 @@ func (c *ModelRouterClient) generateJWT() (string, error) {
 
 	now := time.Now()
 	claims := jwt.MapClaims{
-		"sub": "adaptive-backend",
+		"sub": "adaptive-proxy",
 		"iat": now.Unix(),
 		"exp": now.Add(5 * time.Minute).Unix(),
 	}

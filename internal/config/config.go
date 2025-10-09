@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"adaptive-backend/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
 
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/joho/godotenv"

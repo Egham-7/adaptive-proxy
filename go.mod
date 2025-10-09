@@ -1,4 +1,4 @@
-module adaptive-backend
+module github.com/Egham-7/adaptive-proxy
 
 go 1.25.0
 

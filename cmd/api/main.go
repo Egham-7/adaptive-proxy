@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"adaptive-backend/internal/config"
-	pkgconfig "adaptive-backend/pkg/config"
+	"github.com/Egham-7/adaptive-proxy/internal/config"
+	pkgconfig "github.com/Egham-7/adaptive-proxy/pkg/config"
 
 	fiberlog "github.com/gofiber/fiber/v2/log"
 )

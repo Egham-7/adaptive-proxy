@@ -7,8 +7,8 @@ AdaptiveProxy provides powerful Redis-backed caching to reduce costs and improve
 ```go
 import (
     "os"
-    "adaptive-backend/pkg/config"
-    "adaptive-backend/internal/models"
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/internal/models"
 )
 
 func main() {
@@ -414,8 +414,8 @@ package main
 import (
     "log"
     "os"
-    "adaptive-backend/pkg/config"
-    "adaptive-backend/internal/models"
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/internal/models"
 )
 
 func main() {

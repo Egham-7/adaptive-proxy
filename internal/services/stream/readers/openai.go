@@ -7,7 +7,7 @@ import (
 	"io"
 	"sync"
 
-	"adaptive-backend/internal/utils"
+	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/openai/openai-go/v2"
 	ssestream "github.com/openai/openai-go/v2/packages/ssestream"

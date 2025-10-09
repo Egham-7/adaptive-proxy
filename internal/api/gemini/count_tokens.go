@@ -1,12 +1,12 @@
 package gemini
 
 import (
-	"adaptive-backend/internal/config"
-	"adaptive-backend/internal/models"
-	"adaptive-backend/internal/services/circuitbreaker"
-	"adaptive-backend/internal/services/gemini/count_tokens"
-	"adaptive-backend/internal/services/model_router"
-	"adaptive-backend/internal/utils"
+	"github.com/Egham-7/adaptive-proxy/internal/config"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
+	"github.com/Egham-7/adaptive-proxy/internal/services/gemini/count_tokens"
+	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
+	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"

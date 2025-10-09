@@ -155,7 +155,7 @@ JWT_SECRET=your-secret-here
 Load in your app:
 
 ```go
-import "adaptive-backend/internal/config"
+import "github.com/Egham-7/adaptive-proxy/internal/config"
 
 config.LoadEnvFiles([]string{".env.local", ".env"})
 ```
@@ -186,7 +186,7 @@ import (
     "fmt"
     "os"
     
-    "adaptive-backend/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
 )
 
 func main() {

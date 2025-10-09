@@ -450,7 +450,7 @@ GROQ_API_KEY=gsk_...
 Load in code:
 
 ```go
-import "adaptive-backend/internal/config"
+import "github.com/Egham-7/adaptive-proxy/internal/config"
 
 config.LoadEnvFiles([]string{".env"})
 ```

@@ -4,11 +4,11 @@ import (
 	"context"
 	"iter"
 
-	"adaptive-backend/internal/models"
-	"adaptive-backend/internal/services/format_adapter"
-	"adaptive-backend/internal/services/model_router"
-	"adaptive-backend/internal/services/stream/handlers"
-	"adaptive-backend/internal/utils"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
+	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
+	"github.com/Egham-7/adaptive-proxy/internal/services/stream/handlers"
+	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"

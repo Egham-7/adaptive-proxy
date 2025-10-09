@@ -8,8 +8,8 @@ import (
 	"iter"
 	"time"
 
-	"adaptive-backend/internal/models"
-	"adaptive-backend/internal/utils/clientcache"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/utils/clientcache"
 
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"

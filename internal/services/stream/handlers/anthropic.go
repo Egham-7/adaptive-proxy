@@ -3,8 +3,8 @@ package handlers
 import (
 	"bufio"
 
-	"adaptive-backend/internal/services/stream/contracts"
-	"adaptive-backend/internal/services/stream/writers"
+	"github.com/Egham-7/adaptive-proxy/internal/services/stream/contracts"
+	"github.com/Egham-7/adaptive-proxy/internal/services/stream/writers"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"

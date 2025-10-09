@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"adaptive-backend/internal/models"
-	"adaptive-backend/internal/utils"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/botirk38/semanticcache"
 	"github.com/botirk38/semanticcache/options"

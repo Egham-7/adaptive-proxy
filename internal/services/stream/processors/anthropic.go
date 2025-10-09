@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"adaptive-backend/internal/services/format_adapter"
+	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )

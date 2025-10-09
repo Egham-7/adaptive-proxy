@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"adaptive-backend/internal/models"
-	"adaptive-backend/internal/utils/clientcache"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/utils/clientcache"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"

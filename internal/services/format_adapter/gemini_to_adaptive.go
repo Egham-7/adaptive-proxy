@@ -3,7 +3,7 @@ package format_adapter
 import (
 	"fmt"
 
-	"adaptive-backend/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
 
 	"google.golang.org/genai"
 )

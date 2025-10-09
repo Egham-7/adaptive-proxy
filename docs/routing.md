@@ -7,8 +7,8 @@ AdaptiveProxy's Model Router uses AI to select the optimal LLM provider and mode
 ```go
 import (
     "os"
-    "adaptive-backend/pkg/config"
-    "adaptive-backend/internal/models"
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/internal/models"
 )
 
 func main() {
@@ -104,7 +104,7 @@ endpoints:
 ### Via Builder API
 
 ```go
-import "adaptive-backend/internal/models"
+import "github.com/Egham-7/adaptive-proxy/internal/models"
 
 builder := config.New().
     AddOpenAICompatibleProvider("openai", openaiCfg).
@@ -452,8 +452,8 @@ import (
     "log"
     "os"
     
-    "adaptive-backend/pkg/config"
-    "adaptive-backend/internal/models"
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/internal/models"
 )
 
 func main() {

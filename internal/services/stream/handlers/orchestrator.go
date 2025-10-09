@@ -6,8 +6,8 @@ import (
 	"io"
 	"time"
 
-	"adaptive-backend/internal/services/stream/contracts"
-	"adaptive-backend/internal/utils"
+	"github.com/Egham-7/adaptive-proxy/internal/services/stream/contracts"
+	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	fiberlog "github.com/gofiber/fiber/v2/log"
 )

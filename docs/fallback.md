@@ -238,7 +238,7 @@ AdaptiveProxy distinguishes between:
 ### Custom Error Handlers
 
 ```go
-import "adaptive-backend/pkg/middleware"
+import "github.com/Egham-7/adaptive-proxy/pkg/middleware"
 
 builder := config.New().
     AddMiddleware(middleware.ErrorHandler(func(err error) error {
@@ -317,8 +317,8 @@ import (
     "os"
     "time"
     
-    "adaptive-backend/pkg/config"
-    "adaptive-backend/pkg/middleware"
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/pkg/middleware"
 )
 
 func main() {

@@ -3,7 +3,7 @@ package generate
 import (
 	"fmt"
 
-	"adaptive-backend/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
 
 	"github.com/gofiber/fiber/v2"
 )

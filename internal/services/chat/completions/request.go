@@ -3,9 +3,9 @@ package completions
 import (
 	"fmt"
 
-	"adaptive-backend/internal/models"
-	"adaptive-backend/internal/services/request"
-	"adaptive-backend/internal/utils"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/request"
+	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"

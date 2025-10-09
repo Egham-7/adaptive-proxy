@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"adaptive-backend/internal/models"
-	"adaptive-backend/internal/services/circuitbreaker"
-	"adaptive-backend/internal/services/model_router"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
+	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
 
 	fiberlog "github.com/gofiber/fiber/v2/log"
 )

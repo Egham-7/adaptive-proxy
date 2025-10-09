@@ -45,7 +45,7 @@ import (
     "log"
     "os"
     
-    "adaptive-backend/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
 )
 
 func main() {

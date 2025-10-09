@@ -2,12 +2,11 @@ package api
 
 import (
 	"context"
-	"runtime"
 	"time"
 
-	"adaptive-backend/internal/config"
-	"adaptive-backend/internal/models"
-	"adaptive-backend/internal/services/model_router"
+	"github.com/Egham-7/adaptive-proxy/internal/config"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/redis/go-redis/v9"
@@ -31,17 +30,10 @@ func NewHealthHandler(cfg *config.Config, redisClient *redis.Client) *HealthHand
 
 // HealthCheck returns the health status of the service and its dependencies
 func (h *HealthHandler) HealthCheck(c *fiber.Ctx) error {
-	startTime := time.Now()
-
-	// Check Redis connectivity
 	redisStatus := h.checkRedis()
 
-	// Check adaptive_ai service
 	aiServiceStatus := h.checkAIService()
 
-	responseTime := time.Since(startTime)
-
-	// Determine overall health status
 	overallStatus := "healthy"
 	statusCode := fiber.StatusOK
 
@@ -53,18 +45,9 @@ func (h *HealthHandler) HealthCheck(c *fiber.Ctx) error {
 	response := fiber.Map{
 		"status":    overallStatus,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"service":   "adaptive-backend",
-		"version":   "1.0.0",
 		"checks": fiber.Map{
 			"redis":      redisStatus,
 			"ai_service": aiServiceStatus,
-		},
-		"uptime":       time.Since(startTime).Seconds(),
-		"responseTime": responseTime.String(),
-		"runtime": fiber.Map{
-			"go_version": runtime.Version(),
-			"num_cpu":    runtime.NumCPU(),
-			"goroutines": runtime.NumGoroutine(),
 		},
 	}
 

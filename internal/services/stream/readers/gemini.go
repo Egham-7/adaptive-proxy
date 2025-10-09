@@ -6,7 +6,7 @@ import (
 	"iter"
 	"sync"
 
-	"adaptive-backend/internal/utils"
+	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/valyala/bytebufferpool"
 	"google.golang.org/genai"

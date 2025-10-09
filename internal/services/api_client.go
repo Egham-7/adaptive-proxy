@@ -88,7 +88,7 @@ func NewClientWithConfig(config *ClientConfig) *Client {
 		Headers: map[string]string{
 			"Content-Type": "application/json",
 			"Accept":       "application/json",
-			"User-Agent":   "adaptive-backend/1.0",
+			"User-Agent":   "github.com/Egham-7/adaptive-proxy/1.0",
 		},
 	}
 

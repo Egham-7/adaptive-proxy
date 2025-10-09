@@ -24,7 +24,7 @@ import (
     "log"
     "os"
     
-    "adaptive-backend/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
 )
 
 func main() {
@@ -100,7 +100,7 @@ Now if OpenAI fails, requests automatically fall back to Anthropic.
 ### Enable Caching (Save 60-80% on costs)
 
 ```go
-import "adaptive-backend/internal/models"
+import "github.com/Egham-7/adaptive-proxy/internal/models"
 
 builder.WithPromptCache(models.CacheConfig{
     Enabled:           true,
@@ -138,7 +138,7 @@ builder.WithRateLimit(1000, 1*time.Minute)  // 1000 req/min
 Try all providers simultaneously, return fastest:
 
 ```go
-import "adaptive-backend/internal/models"
+import "github.com/Egham-7/adaptive-proxy/internal/models"
 
 builder := config.New().
     AddOpenAICompatibleProvider("openai", openaiConfig).

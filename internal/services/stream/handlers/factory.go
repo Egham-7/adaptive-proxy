@@ -3,9 +3,9 @@ package handlers
 import (
 	"iter"
 
-	"adaptive-backend/internal/services/stream/contracts"
-	"adaptive-backend/internal/services/stream/processors"
-	"adaptive-backend/internal/services/stream/readers"
+	"github.com/Egham-7/adaptive-proxy/internal/services/stream/contracts"
+	"github.com/Egham-7/adaptive-proxy/internal/services/stream/processors"
+	"github.com/Egham-7/adaptive-proxy/internal/services/stream/readers"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"

@@ -3,7 +3,7 @@ package writers
 import (
 	"bufio"
 
-	"adaptive-backend/internal/services/stream/contracts"
+	"github.com/Egham-7/adaptive-proxy/internal/services/stream/contracts"
 )
 
 // JSONStreamWriter handles pure JSON streaming output without SSE formatting

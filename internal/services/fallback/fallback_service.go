@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"adaptive-backend/internal/config"
-	"adaptive-backend/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/config"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
 
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"

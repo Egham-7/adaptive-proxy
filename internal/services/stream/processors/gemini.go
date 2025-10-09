@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"adaptive-backend/internal/services/format_adapter"
+	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
 
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"google.golang.org/genai"

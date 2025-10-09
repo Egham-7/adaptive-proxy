@@ -1,8 +1,8 @@
 package select_model
 
 import (
-	"adaptive-backend/internal/models"
-	"adaptive-backend/internal/services/request"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/request"
 
 	"github.com/gofiber/fiber/v2"
 )

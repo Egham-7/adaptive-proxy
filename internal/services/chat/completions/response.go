@@ -3,11 +3,11 @@ package completions
 import (
 	"context"
 
-	"adaptive-backend/internal/models"
-	"adaptive-backend/internal/services/format_adapter"
-	"adaptive-backend/internal/services/model_router"
-	"adaptive-backend/internal/services/response"
-	"adaptive-backend/internal/utils"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
+	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
+	"github.com/Egham-7/adaptive-proxy/internal/services/response"
+	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"

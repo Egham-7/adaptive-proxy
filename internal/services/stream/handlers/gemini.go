@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"iter"
 
-	"adaptive-backend/internal/services/stream/contracts"
-	"adaptive-backend/internal/services/stream/writers"
+	"github.com/Egham-7/adaptive-proxy/internal/services/stream/contracts"
+	"github.com/Egham-7/adaptive-proxy/internal/services/stream/writers"
 
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
