@@ -408,9 +408,9 @@ func (c *Config) MergeModelRouterConfig(override *models.ModelRouterConfig, endp
 	}
 
 	merged := &models.ModelRouterConfig{
-		CostBias:      costBias,                    // Use YAML value or fallback
-		SemanticCache: c.ModelRouter.SemanticCache, // Copy YAML semantic cache config
-		Client:        c.ModelRouter.Client,        // Copy YAML client config
+		CostBias: costBias,             // Use YAML value or fallback
+		Cache:    c.ModelRouter.Cache,  // Copy YAML cache config
+		Client:   c.ModelRouter.Client, // Copy YAML client config
 	}
 
 	// If no override provided, populate models from endpoint providers
@@ -436,10 +436,10 @@ func (c *Config) MergeModelRouterConfig(override *models.ModelRouterConfig, endp
 		fiberlog.Debugf("Ignoring invalid cost_bias override %.2f for endpoint %s (must be 0.0-1.0)", override.CostBias, endpoint)
 	}
 
-	// Merge semantic cache config - request override takes precedence
-	if override.SemanticCache.Enabled != c.ModelRouter.SemanticCache.Enabled ||
-		override.SemanticCache.SemanticThreshold != c.ModelRouter.SemanticCache.SemanticThreshold {
-		merged.SemanticCache = override.SemanticCache
+	// Merge cache config - request override takes precedence
+	if override.Cache.Enabled != c.ModelRouter.Cache.Enabled ||
+		override.Cache.SemanticThreshold != c.ModelRouter.Cache.SemanticThreshold {
+		merged.Cache = override.Cache
 	}
 
 	return merged

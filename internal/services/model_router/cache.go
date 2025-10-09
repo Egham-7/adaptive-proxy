@@ -49,17 +49,17 @@ func NewModelRouterCache(cfg *config.Config) (*ModelRouterCache, error) {
 	}
 
 	fiberlog.Debugf("ModelRouterCache: Configuration - enabled=%t, backend=%s, threshold=%.2f",
-		semanticCacheConfig.Enabled, semanticCacheConfig.Backend, threshold)
+		cacheConfig.Enabled, cacheConfig.Backend, threshold)
 
-	apiKey := semanticCacheConfig.OpenAIAPIKey
+	apiKey := cacheConfig.OpenAIAPIKey
 	if apiKey == "" {
-		fiberlog.Error("ModelRouterCache: OpenAI API key not set in semantic cache configuration")
-		return nil, fmt.Errorf("OpenAI API key not set in semantic cache configuration")
+		fiberlog.Error("ModelRouterCache: OpenAI API key not set in cache configuration")
+		return nil, fmt.Errorf("OpenAI API key not set in cache configuration")
 	}
 	fiberlog.Debug("ModelRouterCache: OpenAI API key found")
 
 	// Determine embedding model
-	embedModel := semanticCacheConfig.EmbeddingModel
+	embedModel := cacheConfig.EmbeddingModel
 	if embedModel == "" {
 		embedModel = "text-embedding-3-large"
 	}
@@ -69,7 +69,7 @@ func NewModelRouterCache(cfg *config.Config) (*ModelRouterCache, error) {
 	var cache *semanticcache.SemanticCache[string, models.ModelSelectionResponse]
 	var err error
 
-	backend := semanticCacheConfig.Backend
+	backend := cacheConfig.Backend
 	if backend == "" {
 		backend = models.CacheBackendRedis // Default to Redis for backward compatibility
 		fiberlog.Warn("ModelRouterCache: Backend not specified, defaulting to redis")
@@ -77,7 +77,7 @@ func NewModelRouterCache(cfg *config.Config) (*ModelRouterCache, error) {
 
 	switch backend {
 	case models.CacheBackendMemory:
-		capacity := semanticCacheConfig.Capacity
+		capacity := cacheConfig.Capacity
 		if capacity <= 0 {
 			capacity = 1000 // Default capacity
 			fiberlog.Warnf("ModelRouterCache: Invalid or missing capacity, using default %d", capacity)
@@ -89,14 +89,14 @@ func NewModelRouterCache(cfg *config.Config) (*ModelRouterCache, error) {
 		)
 
 	case models.CacheBackendRedis:
-		// Get Redis URL from semantic cache config first, fallback to PromptCache
-		redisURL := semanticCacheConfig.RedisURL
+		// Get Redis URL from cache config first, fallback to PromptCache
+		redisURL := cacheConfig.RedisURL
 		if redisURL == "" && cfg.PromptCache != nil {
 			redisURL = cfg.PromptCache.RedisURL
 		}
 		if redisURL == "" {
-			fiberlog.Error("ModelRouterCache: redis URL not set - please configure redis_url in semantic_cache or prompt_cache")
-			return nil, fmt.Errorf("redis URL not set - please configure redis_url in semantic_cache or prompt_cache")
+			fiberlog.Error("ModelRouterCache: redis URL not set - please configure redis_url in cache or prompt_cache")
+			return nil, fmt.Errorf("redis URL not set - please configure redis_url in cache or prompt_cache")
 		}
 		fiberlog.Debugf("ModelRouterCache: Using Redis backend with URL=%s", redisURL)
 		cache, err = semanticcache.New(

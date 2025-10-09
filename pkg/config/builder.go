@@ -108,8 +108,8 @@ func (b *Builder) WithModelRouter(cfg models.ModelRouterConfig) *Builder {
 	if cfg.Client.TimeoutMs == 0 {
 		cfg.Client.TimeoutMs = 3000
 	}
-	if cfg.SemanticCache.SemanticThreshold == 0 {
-		cfg.SemanticCache.SemanticThreshold = 0.95
+	if cfg.Cache.SemanticThreshold == 0 {
+		cfg.Cache.SemanticThreshold = 0.95
 	}
 	if cfg.Client.CircuitBreaker.FailureThreshold == 0 {
 		cfg.Client.CircuitBreaker.FailureThreshold = 3
