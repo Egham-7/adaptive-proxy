@@ -1,4 +1,4 @@
-package adaptiveproxy
+package pkg
 
 import "github.com/Egham-7/adaptive-proxy/internal/models"
 
