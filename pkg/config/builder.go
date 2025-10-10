@@ -40,7 +40,6 @@ func New() *Builder {
 					ResetAfterMs:     60000,
 				},
 			},
-			PromptCache: nil,
 			ModelRouter: nil,
 			Endpoints: models.EndpointsConfig{
 				ChatCompletions: models.EndpointConfig{Providers: make(map[string]models.ProviderConfig)},
@@ -78,22 +77,6 @@ func (b *Builder) Environment(env string) *Builder {
 // LogLevel sets the logging level (trace, debug, info, warn, error, fatal).
 func (b *Builder) LogLevel(level string) *Builder {
 	b.cfg.Server.LogLevel = level
-	return b
-}
-
-// Prompt Cache configuration
-
-// WithPromptCache enables prompt-response caching.
-func (b *Builder) WithPromptCache(cfg models.CacheConfig) *Builder {
-	// Set defaults
-	if cfg.SemanticThreshold == 0 {
-		cfg.SemanticThreshold = 0.9
-	}
-	if cfg.EmbeddingModel == "" {
-		cfg.EmbeddingModel = "text-embedding-3-small"
-	}
-
-	b.cfg.PromptCache = &cfg
 	return b
 }
 

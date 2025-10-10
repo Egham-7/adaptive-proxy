@@ -89,14 +89,11 @@ func NewModelRouterCache(cfg *config.Config) (*ModelRouterCache, error) {
 		)
 
 	case models.CacheBackendRedis:
-		// Get Redis URL from cache config first, fallback to PromptCache
+		// Get Redis URL from cache config
 		redisURL := cacheConfig.RedisURL
-		if redisURL == "" && cfg.PromptCache != nil {
-			redisURL = cfg.PromptCache.RedisURL
-		}
 		if redisURL == "" {
-			fiberlog.Error("ModelRouterCache: redis URL not set - please configure redis_url in cache or prompt_cache")
-			return nil, fmt.Errorf("redis URL not set - please configure redis_url in cache or prompt_cache")
+			fiberlog.Error("ModelRouterCache: redis URL not set - please configure redis_url in cache config")
+			return nil, fmt.Errorf("redis URL not set - please configure redis_url in cache config")
 		}
 		fiberlog.Debugf("ModelRouterCache: Using Redis backend with URL=%s", redisURL)
 		cache, err = semanticcache.New(

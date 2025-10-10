@@ -24,7 +24,6 @@ type Config struct {
 	Server      models.ServerConfig       `yaml:"server"`
 	Endpoints   models.EndpointsConfig    `yaml:"endpoints"`
 	Fallback    models.FallbackConfig     `yaml:"fallback"`
-	PromptCache *models.CacheConfig       `yaml:"prompt_cache,omitempty"`
 	ModelRouter *models.ModelRouterConfig `yaml:"model_router,omitempty"`
 }
 
@@ -356,37 +355,6 @@ func (c *Config) MergeProviderConfigs(overrides map[string]*models.ProviderConfi
 	return merged, nil
 }
 
-// MergePromptCacheConfig merges YAML prompt cache config with request override.
-// Enabled and semantic threshold can be overridden in requests.
-// Returns nil if PromptCache is not configured.
-func (c *Config) MergePromptCacheConfig(override *models.CacheConfig) *models.CacheConfig {
-	// If PromptCache is not configured, return nil (caching disabled)
-	if c.PromptCache == nil {
-		return nil
-	}
-
-	// Start with YAML config (RedisURL and OpenAIAPIKey are not overridable)
-	merged := &models.CacheConfig{
-		RedisURL:          c.PromptCache.RedisURL,
-		Enabled:           c.PromptCache.Enabled,
-		SemanticThreshold: c.PromptCache.SemanticThreshold,
-		OpenAIAPIKey:      c.PromptCache.OpenAIAPIKey,
-		EmbeddingModel:    c.PromptCache.EmbeddingModel,
-	}
-
-	// Apply request override if provided (enabled and semantic threshold are allowed)
-	if override != nil {
-		// Override enabled state if explicitly provided
-		merged.Enabled = override.Enabled
-
-		if override.SemanticThreshold > 0 {
-			merged.SemanticThreshold = override.SemanticThreshold
-		}
-	}
-
-	return merged
-}
-
 // MergeModelRouterConfig merges YAML model router config with request override.
 // The request override takes precedence over YAML config for non-empty/non-nil values.
 // If no models are specified, it populates them from the endpoint providers.
@@ -486,11 +454,9 @@ func (c *Config) ResolveConfig(req *models.ChatCompletionRequest) (*Config, erro
 	resolved := &Config{
 		Server:      c.Server,
 		ModelRouter: c.ModelRouter,
-		PromptCache: c.PromptCache,
 	}
 
 	// Merge all configs with request overrides
-	resolved.PromptCache = c.MergePromptCacheConfig(req.PromptCache)
 	resolved.ModelRouter = c.MergeModelRouterConfig(req.ModelRouterConfig, "chat_completions")
 	resolved.Fallback = *c.MergeFallbackConfig(req.Fallback)
 
@@ -510,11 +476,9 @@ func (c *Config) ResolveConfigFromAnthropicRequest(req *models.AnthropicMessageR
 	resolved := &Config{
 		Server:      c.Server,
 		ModelRouter: c.ModelRouter,
-		PromptCache: c.PromptCache,
 	}
 
 	// Merge all configs with request overrides
-	resolved.PromptCache = c.MergePromptCacheConfig(req.PromptCache)
 	resolved.ModelRouter = c.MergeModelRouterConfig(req.ModelRouterConfig, "messages")
 	resolved.Fallback = *c.MergeFallbackConfig(req.Fallback)
 
@@ -534,11 +498,9 @@ func (c *Config) ResolveConfigFromGeminiRequest(req *models.GeminiGenerateReques
 	resolved := &Config{
 		Server:      c.Server,
 		ModelRouter: c.ModelRouter,
-		PromptCache: c.PromptCache,
 	}
 
 	// Merge all configs with request overrides
-	resolved.PromptCache = c.MergePromptCacheConfig(req.PromptCache)
 	resolved.ModelRouter = c.MergeModelRouterConfig(req.ModelRouterConfig, "generate")
 	resolved.Fallback = *c.MergeFallbackConfig(req.Fallback)
 
@@ -561,11 +523,9 @@ func (c *Config) ResolveConfigFromGeminiCountTokensRequest(req *models.GeminiGen
 	resolved := &Config{
 		Server:      c.Server,
 		ModelRouter: c.ModelRouter,
-		PromptCache: c.PromptCache,
 	}
 
 	// Merge all configs with request overrides
-	resolved.PromptCache = c.MergePromptCacheConfig(req.PromptCache)
 	resolved.ModelRouter = c.MergeModelRouterConfig(req.ModelRouterConfig, "count_tokens")
 	resolved.Fallback = *c.MergeFallbackConfig(req.Fallback)
 

@@ -20,7 +20,6 @@ type GeminiGenerateRequest struct {
 
 	// Custom fields for our internal processing
 	ModelRouterConfig *ModelRouterConfig         `json:"model_router,omitzero"`
-	PromptCache       *CacheConfig               `json:"prompt_cache,omitzero"`
 	Fallback          *FallbackConfig            `json:"fallback,omitzero"`
 	ProviderConfigs   map[string]*ProviderConfig `json:"provider_configs,omitzero"`
 }

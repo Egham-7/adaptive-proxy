@@ -33,11 +33,9 @@ func (c *AnthropicToAdaptiveConverter) ConvertRequest(req *anthropic.MessageNewP
 		ToolChoice:    req.ToolChoice,
 		Tools:         req.Tools,
 		// Custom fields are left as nil/defaults - caller can set them as needed
-		ModelRouterConfig:   nil,
-		PromptResponseCache: nil,
-		PromptCache:         nil,
-		Fallback:            nil,
-		ProviderConfigs:     nil,
+		ModelRouterConfig: nil,
+		Fallback:          nil,
+		ProviderConfigs:   nil,
 	}, nil
 }
 

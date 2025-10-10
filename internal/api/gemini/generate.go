@@ -6,12 +6,10 @@ import (
 
 	"github.com/Egham-7/adaptive-proxy/internal/config"
 	"github.com/Egham-7/adaptive-proxy/internal/models"
-	"github.com/Egham-7/adaptive-proxy/internal/services/cache"
 	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
 	"github.com/Egham-7/adaptive-proxy/internal/services/fallback"
 	"github.com/Egham-7/adaptive-proxy/internal/services/gemini/generate"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
-	"github.com/Egham-7/adaptive-proxy/internal/services/stream/stream_simulator"
 	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -25,7 +23,6 @@ type GenerateHandler struct {
 	generateSvc     *generate.GenerateService
 	responseSvc     *generate.ResponseService
 	modelRouter     *model_router.ModelRouter
-	promptCache     *cache.GeminiPromptCache
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker
 	fallbackService *fallback.FallbackService
 }
@@ -34,7 +31,6 @@ type GenerateHandler struct {
 func NewGenerateHandler(
 	cfg *config.Config,
 	modelRouter *model_router.ModelRouter,
-	promptCache *cache.GeminiPromptCache,
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker,
 ) *GenerateHandler {
 	return &GenerateHandler{
@@ -43,7 +39,6 @@ func NewGenerateHandler(
 		generateSvc:     generate.NewGenerateService(),
 		responseSvc:     generate.NewResponseService(modelRouter),
 		modelRouter:     modelRouter,
-		promptCache:     promptCache,
 		circuitBreakers: circuitBreakers,
 		fallbackService: fallback.NewFallbackService(cfg),
 	}
@@ -75,12 +70,6 @@ func (h *GenerateHandler) Generate(c *fiber.Ctx) error {
 	if err != nil {
 		fiberlog.Errorf("[%s] Config resolution failed: %v", requestID, err)
 		return h.responseSvc.HandleError(c, fmt.Errorf("failed to resolve config: %w", err), requestID)
-	}
-
-	// Check prompt cache first
-	if cachedResponse, cacheSource, found := h.checkPromptCache(c.UserContext(), req, resolvedConfig.PromptCache, requestID); found {
-		fiberlog.Infof("[%s] prompt cache hit (%s) - returning cached response", requestID, cacheSource)
-		return c.JSON(cachedResponse)
 	}
 
 	// If a model is specified, try to directly route to the appropriate provider
@@ -207,13 +196,6 @@ func (h *GenerateHandler) StreamGenerate(c *fiber.Ctx) error {
 	if err != nil {
 		fiberlog.Errorf("[%s] Config resolution failed: %v", requestID, err)
 		return h.responseSvc.HandleError(c, fmt.Errorf("failed to resolve config: %w", err), requestID)
-	}
-
-	// Check prompt cache first
-	if cachedResponse, cacheSource, found := h.checkPromptCache(c.UserContext(), req, resolvedConfig.PromptCache, requestID); found {
-		fiberlog.Infof("[%s] prompt cache hit (%s) - streaming cached response", requestID, cacheSource)
-		// Stream the cached response instead of returning as JSON
-		return stream_simulator.StreamGeminiCachedResponse(c, cachedResponse, requestID)
 	}
 
 	// If a model is specified, try to directly route to the appropriate provider
@@ -429,21 +411,6 @@ func (h *GenerateHandler) executeStreamingWithCircuitBreaker(
 
 	fiberlog.Infof("[%s] Gemini StreamGenerateContent request completed successfully", requestID)
 	return nil
-}
-
-// checkPromptCache checks if prompt cache is enabled and returns cached response if found
-func (h *GenerateHandler) checkPromptCache(ctx context.Context, req *models.GeminiGenerateRequest, promptCacheConfig *models.CacheConfig, requestID string) (*models.GeminiGenerateContentResponse, string, bool) {
-	if !promptCacheConfig.Enabled {
-		fiberlog.Debugf("[%s] prompt cache disabled", requestID)
-		return nil, "", false
-	}
-
-	if h.promptCache == nil {
-		fiberlog.Debugf("[%s] prompt cache service not available", requestID)
-		return nil, "", false
-	}
-
-	return h.promptCache.Get(ctx, req, requestID)
 }
 
 // createExecuteFunc creates an execution function for the fallback service

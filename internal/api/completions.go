@@ -7,12 +7,10 @@ import (
 
 	"github.com/Egham-7/adaptive-proxy/internal/config"
 	"github.com/Egham-7/adaptive-proxy/internal/models"
-	"github.com/Egham-7/adaptive-proxy/internal/services/cache"
-	"github.com/Egham-7/adaptive-proxy/internal/services/chat/completions"
 	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
 	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
-	"github.com/Egham-7/adaptive-proxy/internal/services/stream/stream_simulator"
+	"github.com/Egham-7/adaptive-proxy/internal/services/openai/chat/completions"
 	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -34,7 +32,6 @@ type CompletionHandler struct {
 	respSvc         *completions.ResponseService
 	completionSvc   *completions.CompletionService
 	modelRouter     *model_router.ModelRouter
-	promptCache     *cache.OpenAIPromptCache
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker
 }
 
@@ -45,7 +42,6 @@ func NewCompletionHandler(
 	respSvc *completions.ResponseService,
 	completionSvc *completions.CompletionService,
 	modelRouter *model_router.ModelRouter,
-	promptCache *cache.OpenAIPromptCache,
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker,
 ) *CompletionHandler {
 	return &CompletionHandler{
@@ -54,7 +50,6 @@ func NewCompletionHandler(
 		respSvc:         respSvc,
 		completionSvc:   completionSvc,
 		modelRouter:     modelRouter,
-		promptCache:     promptCache,
 		circuitBreakers: circuitBreakers,
 	}
 }
@@ -85,16 +80,6 @@ func (h *CompletionHandler) ChatCompletion(c *fiber.Ctx) error {
 		return h.respSvc.HandleInternalError(c, fmt.Sprintf("failed to resolve config: %v", err), reqID)
 	}
 
-	// Check prompt cache first
-	if cachedResponse, cacheSource, found := h.checkPromptCache(c.UserContext(), req, resolvedConfig.PromptCache, reqID); found {
-		fiberlog.Infof("[%s] prompt cache hit (%s) - returning cached response", reqID, cacheSource)
-		if isStream {
-			// Convert cached response to streaming format
-			return stream_simulator.StreamOpenAICachedResponse(c, cachedResponse, reqID)
-		}
-		return c.JSON(cachedResponse)
-	}
-
 	resp, cacheSource, err := h.selectModel(
 		c.UserContext(), req, userID, reqID, h.circuitBreakers, resolvedConfig,
 	)
@@ -107,21 +92,6 @@ func (h *CompletionHandler) ChatCompletion(c *fiber.Ctx) error {
 	}
 
 	return h.completionSvc.HandleModel(c, req, resp, reqID, isStream, cacheSource, resolvedConfig)
-}
-
-// checkPromptCache checks if prompt cache is enabled and returns cached response if found
-func (h *CompletionHandler) checkPromptCache(ctx context.Context, req *models.ChatCompletionRequest, promptCacheConfig *models.CacheConfig, requestID string) (*models.ChatCompletion, string, bool) {
-	if !promptCacheConfig.Enabled {
-		fiberlog.Debugf("[%s] prompt cache disabled", requestID)
-		return nil, "", false
-	}
-
-	if h.promptCache == nil {
-		fiberlog.Debugf("[%s] prompt cache service not available", requestID)
-		return nil, "", false
-	}
-
-	return h.promptCache.Get(ctx, req, requestID)
 }
 
 // selectModel runs model selection and returns the chosen model response and cache source.

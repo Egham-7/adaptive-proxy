@@ -13,10 +13,9 @@ import (
 	geminiapi "github.com/Egham-7/adaptive-proxy/internal/api/gemini"
 	"github.com/Egham-7/adaptive-proxy/internal/config"
 	"github.com/Egham-7/adaptive-proxy/internal/models"
-	"github.com/Egham-7/adaptive-proxy/internal/services/cache"
-	"github.com/Egham-7/adaptive-proxy/internal/services/chat/completions"
 	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
+	"github.com/Egham-7/adaptive-proxy/internal/services/openai/chat/completions"
 	"github.com/Egham-7/adaptive-proxy/internal/services/select_model"
 
 	"github.com/gofiber/fiber/v2"
@@ -383,12 +382,12 @@ func setupLogLevel(cfg *config.Config) {
 }
 
 func createRedisClient(cfg *config.Config) (*redis.Client, error) {
-	// Redis is optional - only create if PromptCache is configured
-	if cfg.PromptCache == nil || cfg.PromptCache.RedisURL == "" {
+	// Redis is optional - only create if ModelRouter cache is configured with Redis backend
+	if cfg.ModelRouter == nil || cfg.ModelRouter.Cache.RedisURL == "" {
 		return nil, nil // No Redis needed
 	}
 
-	redisURL := cfg.PromptCache.RedisURL
+	redisURL := cfg.ModelRouter.Cache.RedisURL
 
 	// Parse Redis URL
 	opt, err := redis.ParseURL(redisURL)
@@ -461,22 +460,6 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 		return fmt.Errorf("model router initialization failed: %w", err)
 	}
 
-	// Create prompt caches
-	openaiPromptCache, err := createPromptCache(cfg, redisClient, cache.NewOpenAIPromptCache)
-	if err != nil {
-		return fmt.Errorf("openAI prompt cache initialization failed: %w", err)
-	}
-
-	anthropicPromptCache, err := createPromptCache(cfg, redisClient, cache.NewAnthropicPromptCache)
-	if err != nil {
-		return fmt.Errorf("anthropic prompt cache initialization failed: %w", err)
-	}
-
-	geminiPromptCache, err := createPromptCache(cfg, redisClient, cache.NewGeminiPromptCache)
-	if err != nil {
-		return fmt.Errorf("gemini prompt cache initialization failed: %w", err)
-	}
-
 	// Create response service
 	respSvc := completions.NewResponseService(modelRouter)
 
@@ -516,7 +499,7 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	}
 
 	if isEnabled("chat_completions") {
-		chatCompletionHandler = api.NewCompletionHandler(cfg, reqSvc, respSvc, completionSvc, modelRouter, openaiPromptCache, circuitBreakers)
+		chatCompletionHandler = api.NewCompletionHandler(cfg, reqSvc, respSvc, completionSvc, modelRouter, circuitBreakers)
 	}
 
 	if isEnabled("select_model") {
@@ -524,11 +507,11 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	}
 
 	if isEnabled("messages") {
-		messagesHandler = api.NewMessagesHandler(cfg, modelRouter, anthropicPromptCache, circuitBreakers)
+		messagesHandler = api.NewMessagesHandler(cfg, modelRouter, circuitBreakers)
 	}
 
 	if isEnabled("generate") {
-		generateHandler = geminiapi.NewGenerateHandler(cfg, modelRouter, geminiPromptCache, circuitBreakers)
+		generateHandler = geminiapi.NewGenerateHandler(cfg, modelRouter, circuitBreakers)
 	}
 
 	if isEnabled("count_tokens") {
@@ -572,13 +555,6 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	}
 
 	return nil
-}
-
-func createPromptCache[T any](cfg *config.Config, redisClient *redis.Client, newFunc func(*redis.Client, models.CacheConfig) (T, error)) (T, error) {
-	if cfg.PromptCache == nil {
-		return newFunc(redisClient, models.CacheConfig{})
-	}
-	return newFunc(redisClient, *cfg.PromptCache)
 }
 
 func welcomeHandler() fiber.Handler {

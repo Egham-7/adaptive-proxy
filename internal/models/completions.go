@@ -193,7 +193,6 @@ type ChatCompletionRequest struct {
 	WebSearchOptions  openai.ChatCompletionNewParamsWebSearchOptions `json:"web_search_options,omitzero"`
 	Stream            bool                                           `json:"stream,omitzero"` // Whether to stream the response or not
 	ModelRouterConfig *ModelRouterConfig                             `json:"model_router,omitzero"`
-	PromptCache       *CacheConfig                                   `json:"prompt_cache,omitzero"`     // Optional prompt response cache configuration
 	Fallback          *FallbackConfig                                `json:"fallback,omitzero"`         // Fallback configuration with enabled toggle
 	ProviderConfigs   map[string]*ProviderConfig                     `json:"provider_configs,omitzero"` // Custom provider configurations by provider name
 }

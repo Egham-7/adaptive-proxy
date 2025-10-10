@@ -1,4 +1,4 @@
-name: Backend CI/CD
+name: Adaptive Proxy CI/CD
 on:
   push:
     branches: [master]

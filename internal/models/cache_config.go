@@ -8,7 +8,7 @@ const (
 	CacheBackendMemory CacheBackendType = "memory"
 )
 
-// CacheConfig holds configuration for prompt caching (optional)
+// CacheConfig holds configuration for model router caching
 type CacheConfig struct {
 	// Backend configuration
 	Backend  CacheBackendType `json:"backend,omitzero" yaml:"backend"`     // "redis" or "memory"
