@@ -48,7 +48,6 @@ type ModelRouterClientConfig struct {
 func NewModelRouterClient(cfg *config.Config, redisClient *redis.Client) *ModelRouterClient {
 	config := DefaultModelRouterClientConfig()
 
-	// ModelRouter is optional
 	if cfg.ModelRouter == nil {
 		return nil
 	}
@@ -61,24 +60,24 @@ func NewModelRouterClient(cfg *config.Config, redisClient *redis.Client) *ModelR
 		config.JWTSecret = cfg.ModelRouter.Client.JWTSecret
 	}
 
-	// Map timeout from config (milliseconds to duration)
 	if cfg.ModelRouter.Client.TimeoutMs > 0 {
 		config.RequestTimeout = time.Duration(cfg.ModelRouter.Client.TimeoutMs) * time.Millisecond
 	}
 
-	// Map circuit breaker configuration
-	cbCfg := &cfg.ModelRouter.Client.CircuitBreaker
-	if cbCfg.FailureThreshold > 0 {
-		config.CircuitBreakerConfig.FailureThreshold = cbCfg.FailureThreshold
-	}
-	if cbCfg.SuccessThreshold > 0 {
-		config.CircuitBreakerConfig.SuccessThreshold = cbCfg.SuccessThreshold
-	}
-	if cbCfg.TimeoutMs > 0 {
-		config.CircuitBreakerConfig.Timeout = time.Duration(cbCfg.TimeoutMs) * time.Millisecond
-	}
-	if cbCfg.ResetAfterMs > 0 {
-		config.CircuitBreakerConfig.ResetAfter = time.Duration(cbCfg.ResetAfterMs) * time.Millisecond
+	if cfg.ModelRouter.Client.CircuitBreaker != nil {
+		cbCfg := cfg.ModelRouter.Client.CircuitBreaker
+		if cbCfg.FailureThreshold > 0 {
+			config.CircuitBreakerConfig.FailureThreshold = cbCfg.FailureThreshold
+		}
+		if cbCfg.SuccessThreshold > 0 {
+			config.CircuitBreakerConfig.SuccessThreshold = cbCfg.SuccessThreshold
+		}
+		if cbCfg.TimeoutMs > 0 {
+			config.CircuitBreakerConfig.Timeout = time.Duration(cbCfg.TimeoutMs) * time.Millisecond
+		}
+		if cbCfg.ResetAfterMs > 0 {
+			config.CircuitBreakerConfig.ResetAfter = time.Duration(cbCfg.ResetAfterMs) * time.Millisecond
+		}
 	}
 
 	return NewModelRouterClientWithConfig(config, redisClient)
@@ -130,15 +129,13 @@ func (c *ModelRouterClient) SelectModel(
 			*req.CostBias, len(req.Models))
 	}
 
-	if !c.circuitBreaker.CanExecute() {
+	if c.circuitBreaker != nil && !c.circuitBreaker.CanExecute() {
 		fiberlog.Warnf("[CIRCUIT_BREAKER] Adaptive Router service unavailable (Open state). Using fallback.")
-		// Log circuit breaker error but continue with fallback
 		circuitErr := models.NewCircuitBreakerError("adaptive_router")
 		fiberlog.Debugf("[CIRCUIT_BREAKER] %v", circuitErr)
 		return c.getFallbackModelResponse(req.Models)
 	}
 
-	// Generate JWT token
 	jwtToken, err := c.generateJWT()
 	if err != nil {
 		fiberlog.Warnf("[JWT_ERROR] Failed to generate JWT token: %v. Using fallback.", err)
@@ -158,24 +155,28 @@ func (c *ModelRouterClient) SelectModel(
 	client := services.NewClient(c.adaptiveRouterURL)
 	err = client.Post("", req, &out, opts)
 	if err != nil {
-		c.circuitBreaker.RecordFailure()
-		// Log provider error but continue with fallback
+		if c.circuitBreaker != nil {
+			c.circuitBreaker.RecordFailure()
+		}
 		providerErr := models.NewProviderError("adaptive_router", "prediction request failed", err)
 		fiberlog.Warnf("[PROVIDER_ERROR] %v", providerErr)
 		fiberlog.Warnf("[SELECT_MODEL] Request failed, using fallback model")
 		return c.getFallbackModelResponse(req.Models)
 	}
 
-	// Validate the response from model router - use fallback if invalid
 	if !out.IsValid() {
-		c.circuitBreaker.RecordFailure()
+		if c.circuitBreaker != nil {
+			c.circuitBreaker.RecordFailure()
+		}
 		fiberlog.Warnf("[SELECT_MODEL] Adaptive router returned invalid response (provider: '%s', model: '%s'), using fallback",
 			out.Provider, out.Model)
 		return c.getFallbackModelResponse(req.Models)
 	}
 
 	duration := time.Since(start)
-	c.circuitBreaker.RecordSuccess()
+	if c.circuitBreaker != nil {
+		c.circuitBreaker.RecordSuccess()
+	}
 	fiberlog.Infof("[SELECT_MODEL] Request successful in %v - model: %s/%s",
 		duration, out.Provider, out.Model)
 	return out

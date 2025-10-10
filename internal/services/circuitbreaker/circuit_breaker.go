@@ -146,9 +146,13 @@ func NewForProvider(redisClient *redis.Client, providerName string) *CircuitBrea
 }
 
 func NewWithConfig(redisClient *redis.Client, serviceName string, config Config) *CircuitBreaker {
+	if redisClient == nil {
+		fiberlog.Warnf("Circuit breaker disabled for service '%s': Redis client not configured", serviceName)
+		return nil
+	}
+
 	keyPrefix := circuitBreakerKeyPrefix + serviceName + ":"
 
-	// Verify Redis connection health
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 

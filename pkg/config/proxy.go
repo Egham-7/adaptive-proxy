@@ -400,20 +400,22 @@ func setupLogLevel(cfg *config.Config) {
 }
 
 func createRedisClient(cfg *config.Config) (*redis.Client, error) {
-	// Redis is optional - only create if ModelRouter cache is configured with Redis backend
-	if cfg.ModelRouter == nil || cfg.ModelRouter.Cache.RedisURL == "" {
-		return nil, nil // No Redis needed
+	redisURL := ""
+
+	if cfg.ModelRouter != nil && cfg.ModelRouter.Cache.RedisURL != "" {
+		redisURL = cfg.ModelRouter.Cache.RedisURL
 	}
 
-	redisURL := cfg.ModelRouter.Cache.RedisURL
+	if redisURL == "" {
+		fiberlog.Info("Redis not configured - circuit breakers and semantic cache disabled")
+		return nil, nil
+	}
 
-	// Parse Redis URL
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
 	}
 
-	// Configure connection pool settings
 	opt.PoolSize = 50
 	opt.MinIdleConns = 10
 	opt.PoolTimeout = 4 * time.Second
