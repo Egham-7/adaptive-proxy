@@ -14,6 +14,7 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/config"
 	"github.com/Egham-7/adaptive-proxy/internal/models"
 	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
+	"github.com/Egham-7/adaptive-proxy/internal/services/database"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
 	"github.com/Egham-7/adaptive-proxy/internal/services/openai/chat/completions"
 	"github.com/Egham-7/adaptive-proxy/internal/services/select_model"
@@ -35,6 +36,7 @@ type Proxy struct {
 	config           *config.Config
 	app              *fiber.App
 	redis            *redis.Client
+	db               *database.DB
 	builder          *Builder
 	enabledEndpoints map[string]bool
 }
@@ -100,6 +102,22 @@ func (p *Proxy) Run() error {
 		fiberlog.Info("Redis client initialized successfully")
 	} else {
 		fiberlog.Info("Redis not configured - caching disabled")
+	}
+
+	// Create Database client (optional)
+	if p.config.Database != nil {
+		p.db, err = database.New(*p.config.Database)
+		if err != nil {
+			return fmt.Errorf("failed to create database connection: %w", err)
+		}
+		defer func() {
+			if err := p.db.Close(); err != nil {
+				fiberlog.Errorf("Failed to close database connection: %v", err)
+			}
+		}()
+		fiberlog.Infof("Database (%s) initialized successfully", p.db.DriverName())
+	} else {
+		fiberlog.Info("Database not configured")
 	}
 
 	// Setup routes

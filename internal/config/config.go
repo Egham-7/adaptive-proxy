@@ -25,6 +25,7 @@ type Config struct {
 	Endpoints   models.EndpointsConfig    `yaml:"endpoints"`
 	Fallback    models.FallbackConfig     `yaml:"fallback"`
 	ModelRouter *models.ModelRouterConfig `yaml:"model_router,omitempty"`
+	Database    *models.DatabaseConfig    `yaml:"database,omitempty"`
 }
 
 // LoadFromFile loads configuration from a YAML file with environment variable substitution

@@ -269,6 +269,14 @@ func (b *Builder) WithMiddleware(middleware fiber.Handler) *Builder {
 	return b
 }
 
+// Database configuration
+
+// WithDatabase configures database connection.
+func (b *Builder) WithDatabase(cfg models.DatabaseConfig) *Builder {
+	b.cfg.Database = &cfg
+	return b
+}
+
 // GetMiddlewares returns all configured middlewares.
 func (b *Builder) GetMiddlewares() []fiber.Handler {
 	return b.middlewares
