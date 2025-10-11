@@ -277,6 +277,23 @@ func (b *Builder) WithDatabase(cfg models.DatabaseConfig) *Builder {
 	return b
 }
 
+// WithAPIKeyManagement enables API key management and authentication.
+func (b *Builder) WithAPIKeyManagement(cfg models.APIKeyConfig) *Builder {
+	if cfg.HeaderName == "" {
+		cfg.HeaderName = "X-API-Key"
+	}
+	b.cfg.Server.APIKeyConfig = &cfg
+	return b
+}
+
+// EnableAPIKeyAuth enables API key authentication with default settings.
+func (b *Builder) EnableAPIKeyAuth() *Builder {
+	cfg := models.DefaultAPIKeyConfig()
+	cfg.Enabled = true
+	b.cfg.Server.APIKeyConfig = &cfg
+	return b
+}
+
 // GetMiddlewares returns all configured middlewares.
 func (b *Builder) GetMiddlewares() []fiber.Handler {
 	return b.middlewares
