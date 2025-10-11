@@ -639,7 +639,7 @@ func welcomeHandler() fiber.Handler {
 
 func runDatabaseMigrations(db *database.DB) error {
 	if db.DriverName() == "clickhouse" {
-		return nil
+		return database.RunClickHouseMigrations(db.DB)
 	}
 
 	apiKeySvc := usage.NewAPIKeyService(db.DB)
