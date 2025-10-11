@@ -14,7 +14,7 @@ type ModelRouterClientConfig struct {
 	AdaptiveRouterURL string                `json:"adaptive_router_url,omitzero" yaml:"adaptive_router_url"`
 	JWTSecret         string                `json:"jwt_secret,omitzero" yaml:"jwt_secret"`
 	TimeoutMs         int                   `json:"timeout_ms,omitzero" yaml:"timeout_ms"`
-	CircuitBreaker    *CircuitBreakerConfig `json:"circuit_breaker,omitzero" yaml:"circuit_breaker,omitzero"`
+	CircuitBreaker    *CircuitBreakerConfig `json:"circuit_breaker,omitzero" yaml:"circuit_breaker,omitempty"`
 }
 
 // RedisConfig holds configuration for Redis

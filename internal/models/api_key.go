@@ -34,9 +34,9 @@ func (APIKey) TableName() string {
 
 type APIKeyConfig struct {
 	Enabled        bool     `yaml:"enabled" json:"enabled"`
-	HeaderNames    []string `yaml:"header_names,omitzero" json:"header_names,omitzero"`
-	RequireForAll  bool     `yaml:"require_for_all,omitzero" json:"require_for_all,omitzero"`
-	AllowAnonymous bool     `yaml:"allow_anonymous,omitzero" json:"allow_anonymous,omitzero"`
+	HeaderNames    []string `yaml:"header_names,omitempty" json:"header_names,omitzero"`
+	RequireForAll  bool     `yaml:"require_for_all,omitempty" json:"require_for_all,omitzero"`
+	AllowAnonymous bool     `yaml:"allow_anonymous,omitempty" json:"allow_anonymous,omitzero"`
 }
 
 func DefaultAPIKeyConfig() APIKeyConfig {

@@ -5,5 +5,5 @@ type ServerConfig struct {
 	AllowedOrigins string        `json:"allowed_origins,omitzero" yaml:"allowed_origins"`
 	Environment    string        `json:"environment,omitzero" yaml:"environment"`
 	LogLevel       string        `json:"log_level,omitzero" yaml:"log_level"`
-	APIKeyConfig   *APIKeyConfig `json:"api_key,omitzero" yaml:"api_key,omitzero"`
+	APIKeyConfig   *APIKeyConfig `json:"api_key,omitzero" yaml:"api_key,omitempty"`
 }

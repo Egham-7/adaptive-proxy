@@ -24,8 +24,8 @@ type Config struct {
 	Server      models.ServerConfig       `yaml:"server"`
 	Endpoints   models.EndpointsConfig    `yaml:"endpoints"`
 	Fallback    models.FallbackConfig     `yaml:"fallback"`
-	ModelRouter *models.ModelRouterConfig `yaml:"model_router,omitzero"`
-	Database    *models.DatabaseConfig    `yaml:"database,omitzero"`
+	ModelRouter *models.ModelRouterConfig `yaml:"model_router,omitempty"`
+	Database    *models.DatabaseConfig    `yaml:"database,omitempty"`
 }
 
 // LoadFromFile loads configuration from a YAML file with environment variable substitution
