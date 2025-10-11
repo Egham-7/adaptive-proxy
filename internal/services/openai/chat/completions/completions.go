@@ -14,6 +14,7 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/services/fallback"
 	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/handlers"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 	"github.com/Egham-7/adaptive-proxy/internal/utils/clientcache"
 
 	"github.com/gofiber/fiber/v2"
@@ -34,10 +35,10 @@ type CompletionService struct {
 	responseService *ResponseService
 	clientCache     *clientcache.Cache[*openai.Client]
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker
+	usageService    *usage.Service
 }
 
-// NewCompletionService creates a new completion service.
-func NewCompletionService(cfg *config.Config, responseService *ResponseService, circuitBreakers map[string]*circuitbreaker.CircuitBreaker) *CompletionService {
+func NewCompletionService(cfg *config.Config, responseService *ResponseService, circuitBreakers map[string]*circuitbreaker.CircuitBreaker, usageService *usage.Service) *CompletionService {
 	if responseService == nil {
 		panic("NewCompletionService: responseService cannot be nil")
 	}
@@ -50,6 +51,7 @@ func NewCompletionService(cfg *config.Config, responseService *ResponseService, 
 		responseService: responseService,
 		clientCache:     clientcache.NewCache[*openai.Client](),
 		circuitBreakers: circuitBreakers,
+		usageService:    usageService,
 	}
 }
 
@@ -280,7 +282,20 @@ func (cs *CompletionService) handleStreamingCompletion(
 	// Use context.Background() for streaming - c.UserContext() gets canceled too early
 	// The stream handler will monitor fasthttpCtx for actual client disconnects
 	streamResp := client.Chat.Completions.NewStreaming(context.Background(), *openAIParams)
-	err := handlers.HandleOpenAI(c, streamResp, requestID, providerName, cacheSource)
+
+	// Extract model and API key for usage tracking
+	model := string(openAIParams.Model)
+	endpoint := "/v1/chat/completions"
+
+	// Get API key from context
+	var apiKey *models.APIKey
+	if apiKeyInterface := c.Locals("api_key"); apiKeyInterface != nil {
+		if key, ok := apiKeyInterface.(*models.APIKey); ok {
+			apiKey = key
+		}
+	}
+
+	err := handlers.HandleOpenAI(c, streamResp, requestID, providerName, cacheSource, model, endpoint, cs.usageService, apiKey)
 	if err != nil {
 		// Record failure in circuit breaker
 		if cb := cs.circuitBreakers[providerName]; cb != nil {
@@ -344,6 +359,29 @@ func (cs *CompletionService) handleNonStreamingCompletion(
 	if cb := cs.circuitBreakers[providerName]; cb != nil {
 		cb.RecordSuccess()
 		fiberlog.Infof("[%s] 🟢 Circuit breaker recorded SUCCESS for provider %s (non-streaming)", requestID, providerName)
+	}
+
+	if cs.usageService != nil {
+		apiKeyInterface := c.Locals("api_key")
+		if apiKey, ok := apiKeyInterface.(*models.APIKey); ok && apiKey != nil {
+			usageParams := models.RecordUsageParams{
+				APIKeyID:       apiKey.ID,
+				OrganizationID: apiKey.OrganizationID,
+				UserID:         apiKey.UserID,
+				Endpoint:       "/v1/chat/completions",
+				Provider:       providerName,
+				Model:          string(resp.Model),
+				TokensInput:    int(resp.Usage.PromptTokens),
+				TokensOutput:   int(resp.Usage.CompletionTokens),
+				StatusCode:     200,
+				RequestID:      requestID,
+			}
+
+			_, err := cs.usageService.RecordUsage(c.UserContext(), usageParams)
+			if err != nil {
+				fiberlog.Errorf("[%s] Failed to record usage: %v", requestID, err)
+			}
+		}
 	}
 
 	return c.JSON(adaptiveResp)

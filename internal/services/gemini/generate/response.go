@@ -8,6 +8,7 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/handlers"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,13 +18,15 @@ import (
 
 // ResponseService handles Gemini response processing
 type ResponseService struct {
-	modelRouter *model_router.ModelRouter
+	modelRouter  *model_router.ModelRouter
+	usageService *usage.Service
 }
 
 // NewResponseService creates a new ResponseService
-func NewResponseService(modelRouter *model_router.ModelRouter) *ResponseService {
+func NewResponseService(modelRouter *model_router.ModelRouter, usageService *usage.Service) *ResponseService {
 	return &ResponseService{
-		modelRouter: modelRouter,
+		modelRouter:  modelRouter,
+		usageService: usageService,
 	}
 }
 
@@ -33,6 +36,7 @@ func (rs *ResponseService) HandleNonStreamingResponse(
 	response *genai.GenerateContentResponse,
 	requestID string,
 	provider string,
+	model string,
 	cacheSource string,
 ) error {
 	fiberlog.Debugf("[%s] Processing non-streaming Gemini response", requestID)
@@ -49,6 +53,30 @@ func (rs *ResponseService) HandleNonStreamingResponse(
 		fiberlog.Infof("[%s] Response served from cache: %s", requestID, cacheSource)
 	}
 
+	// Record usage if usage service is available and usage metadata exists
+	if rs.usageService != nil && adaptiveResp.UsageMetadata != nil {
+		apiKeyInterface := c.Locals("api_key")
+		if apiKey, ok := apiKeyInterface.(*models.APIKey); ok && apiKey != nil {
+			usageParams := models.RecordUsageParams{
+				APIKeyID:       apiKey.ID,
+				OrganizationID: apiKey.OrganizationID,
+				UserID:         apiKey.UserID,
+				Endpoint:       "/v1beta/models/:model:generateContent",
+				Provider:       provider,
+				Model:          model,
+				TokensInput:    int(adaptiveResp.UsageMetadata.PromptTokenCount),
+				TokensOutput:   int(adaptiveResp.UsageMetadata.CandidatesTokenCount),
+				StatusCode:     200,
+				RequestID:      requestID,
+			}
+
+			_, err := rs.usageService.RecordUsage(c.UserContext(), usageParams)
+			if err != nil {
+				fiberlog.Errorf("[%s] Failed to record usage: %v", requestID, err)
+			}
+		}
+	}
+
 	fiberlog.Infof("[%s] Non-streaming response processed successfully", requestID)
 	return c.JSON(adaptiveResp)
 }
@@ -60,11 +88,16 @@ func (rs *ResponseService) HandleStreamingResponse(
 	requestID string,
 	provider string,
 	cacheSource string,
+	model string,
+	endpoint string,
 ) error {
 	fiberlog.Infof("[%s] Starting streaming response processing", requestID)
 
+	// Extract API key from context
+	apiKey, _ := c.Locals("api_key").(*models.APIKey)
+
 	// Use the proper Gemini streaming handler from the stream package
-	return handlers.HandleGemini(c, streamIter, requestID, provider, cacheSource)
+	return handlers.HandleGemini(c, streamIter, requestID, provider, cacheSource, model, endpoint, rs.usageService, apiKey)
 }
 
 // HandleError processes and returns error responses

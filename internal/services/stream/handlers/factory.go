@@ -3,9 +3,11 @@ package handlers
 import (
 	"iter"
 
+	"github.com/Egham-7/adaptive-proxy/internal/models"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/contracts"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/processors"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/readers"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
@@ -26,13 +28,15 @@ func NewStreamFactory() *StreamFactory {
 // Returns error if stream validation fails (allows fallback before HTTP streaming starts)
 func (f *StreamFactory) CreateOpenAIPipeline(
 	stream *openai_ssestream.Stream[openai.ChatCompletionChunk],
-	requestID, provider, cacheSource string,
+	requestID, provider, cacheSource, model, endpoint string,
+	usageService *usage.Service,
+	apiKey *models.APIKey,
 ) (contracts.StreamHandler, error) {
 	reader, err := readers.NewOpenAIStreamReader(stream, requestID)
 	if err != nil {
 		return nil, err
 	}
-	processor := processors.NewOpenAIChunkProcessor(provider, cacheSource, requestID)
+	processor := processors.NewOpenAIChunkProcessor(provider, cacheSource, requestID, model, endpoint, usageService, apiKey)
 	return NewStreamOrchestrator(reader, processor, requestID), nil
 }
 
@@ -40,13 +44,15 @@ func (f *StreamFactory) CreateOpenAIPipeline(
 // Returns error if stream validation fails (allows fallback before HTTP streaming starts)
 func (f *StreamFactory) CreateAnthropicNativePipeline(
 	stream *ssestream.Stream[anthropic.MessageStreamEventUnion],
-	requestID, provider, cacheSource string,
+	requestID, provider, cacheSource, model, endpoint string,
+	usageService *usage.Service,
+	apiKey *models.APIKey,
 ) (contracts.StreamHandler, error) {
 	reader, err := readers.NewAnthropicNativeStreamReader(stream, requestID)
 	if err != nil {
 		return nil, err
 	}
-	processor := processors.NewAnthropicChunkProcessor(provider, cacheSource, requestID)
+	processor := processors.NewAnthropicChunkProcessor(provider, cacheSource, requestID, model, endpoint, usageService, apiKey)
 	return NewStreamOrchestrator(reader, processor, requestID), nil
 }
 
@@ -54,13 +60,15 @@ func (f *StreamFactory) CreateAnthropicNativePipeline(
 // Returns error if stream validation fails (allows fallback before HTTP streaming starts)
 func (f *StreamFactory) CreateGeminiPipeline(
 	streamIter iter.Seq2[*genai.GenerateContentResponse, error],
-	requestID, provider, cacheSource string,
+	requestID, provider, cacheSource, model, endpoint string,
+	usageService *usage.Service,
+	apiKey *models.APIKey,
 ) (contracts.StreamHandler, error) {
 	reader, err := readers.NewGeminiStreamReader(streamIter, requestID)
 	if err != nil {
 		return nil, err
 	}
 	// Use Gemini processor to format as SSE events for SDK compatibility
-	processor := processors.NewGeminiChunkProcessor(provider, cacheSource, requestID)
+	processor := processors.NewGeminiChunkProcessor(provider, cacheSource, requestID, model, endpoint, usageService, apiKey)
 	return NewStreamOrchestrator(reader, processor, requestID), nil
 }

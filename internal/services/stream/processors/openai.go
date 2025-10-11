@@ -5,24 +5,35 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Egham-7/adaptive-proxy/internal/models"
 	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 
+	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/openai/openai-go/v2"
 )
 
 // OpenAIChunkProcessor handles OpenAI-specific format conversion
 type OpenAIChunkProcessor struct {
-	provider    string
-	cacheSource string
-	requestID   string
+	provider     string
+	cacheSource  string
+	requestID    string
+	usageService *usage.Service
+	apiKey       *models.APIKey
+	model        string
+	endpoint     string
 }
 
 // NewOpenAIChunkProcessor creates a new OpenAI chunk processor
-func NewOpenAIChunkProcessor(provider, cacheSource, requestID string) *OpenAIChunkProcessor {
+func NewOpenAIChunkProcessor(provider, cacheSource, requestID, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey) *OpenAIChunkProcessor {
 	return &OpenAIChunkProcessor{
-		provider:    provider,
-		cacheSource: cacheSource,
-		requestID:   requestID,
+		provider:     provider,
+		cacheSource:  cacheSource,
+		requestID:    requestID,
+		usageService: usageService,
+		apiKey:       apiKey,
+		model:        model,
+		endpoint:     endpoint,
 	}
 }
 
@@ -50,6 +61,29 @@ func (p *OpenAIChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 	adaptiveChunk, err := format_adapter.OpenAIToAdaptive.ConvertStreamingChunk(&openaiChunk, p.provider, p.cacheSource)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert OpenAI chunk: %w", err)
+	}
+
+	// Check if this chunk contains usage data (final chunk) and record it
+	if adaptiveChunk.Usage.TotalTokens > 0 && p.usageService != nil && p.apiKey != nil {
+		usageParams := models.RecordUsageParams{
+			APIKeyID:       p.apiKey.ID,
+			OrganizationID: p.apiKey.OrganizationID,
+			UserID:         p.apiKey.UserID,
+			Endpoint:       p.endpoint,
+			Provider:       p.provider,
+			Model:          p.model,
+			TokensInput:    int(adaptiveChunk.Usage.PromptTokens),
+			TokensOutput:   int(adaptiveChunk.Usage.CompletionTokens),
+			StatusCode:     200,
+			RequestID:      p.requestID,
+		}
+
+		go func(params models.RecordUsageParams, reqID string) {
+			_, err := p.usageService.RecordUsage(context.Background(), params)
+			if err != nil {
+				fiberlog.Errorf("[%s] Failed to record streaming usage: %v", reqID, err)
+			}
+		}(usageParams, p.requestID)
 	}
 
 	// Marshal to JSON

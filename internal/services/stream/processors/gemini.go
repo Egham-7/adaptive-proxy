@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Egham-7/adaptive-proxy/internal/models"
 	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"google.golang.org/genai"
@@ -14,17 +16,25 @@ import (
 // GeminiChunkProcessor handles processing of Gemini stream chunks
 // Converts between formats and adds provider metadata
 type GeminiChunkProcessor struct {
-	provider    string
-	cacheSource string
-	requestID   string
+	provider     string
+	cacheSource  string
+	requestID    string
+	usageService *usage.Service
+	apiKey       *models.APIKey
+	model        string
+	endpoint     string
 }
 
 // NewGeminiChunkProcessor creates a new Gemini chunk processor
-func NewGeminiChunkProcessor(provider, cacheSource, requestID string) *GeminiChunkProcessor {
+func NewGeminiChunkProcessor(provider, cacheSource, requestID, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey) *GeminiChunkProcessor {
 	return &GeminiChunkProcessor{
-		provider:    provider,
-		cacheSource: cacheSource,
-		requestID:   requestID,
+		provider:     provider,
+		cacheSource:  cacheSource,
+		requestID:    requestID,
+		usageService: usageService,
+		apiKey:       apiKey,
+		model:        model,
+		endpoint:     endpoint,
 	}
 }
 
@@ -53,6 +63,28 @@ func (p *GeminiChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 	if p.cacheSource != "" {
 		fiberlog.Debugf("[%s] Chunk served from cache: %s", p.requestID, p.cacheSource)
 		// Note: Cache metadata would be added here if needed in the response structure
+	}
+
+	if adaptiveResponse.UsageMetadata != nil && p.usageService != nil && p.apiKey != nil {
+		usageParams := models.RecordUsageParams{
+			APIKeyID:       p.apiKey.ID,
+			OrganizationID: p.apiKey.OrganizationID,
+			UserID:         p.apiKey.UserID,
+			Endpoint:       p.endpoint,
+			Provider:       p.provider,
+			Model:          p.model,
+			TokensInput:    int(adaptiveResponse.UsageMetadata.PromptTokenCount),
+			TokensOutput:   int(adaptiveResponse.UsageMetadata.CandidatesTokenCount),
+			StatusCode:     200,
+			RequestID:      p.requestID,
+		}
+
+		go func(params models.RecordUsageParams, reqID string) {
+			_, err := p.usageService.RecordUsage(context.Background(), params)
+			if err != nil {
+				fiberlog.Errorf("[%s] Failed to record streaming usage: %v", reqID, err)
+			}
+		}(usageParams, p.requestID)
 	}
 
 	// Marshal back to JSON for output

@@ -6,20 +6,21 @@ import (
 	"time"
 
 	"github.com/Egham-7/adaptive-proxy/internal/models"
-	"github.com/Egham-7/adaptive-proxy/internal/services/apikey"
-	"github.com/Egham-7/adaptive-proxy/internal/services/budget"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 	"github.com/gofiber/fiber/v2"
 )
 
 type APIKeyHandler struct {
-	service       *apikey.Service
-	budgetService *budget.Service
+	service        *usage.APIKeyService
+	budgetService  *usage.Service
+	creditsEnabled bool
 }
 
-func NewAPIKeyHandler(service *apikey.Service, budgetService *budget.Service) *APIKeyHandler {
+func NewAPIKeyHandler(service *usage.APIKeyService, budgetService *usage.Service, creditsEnabled bool) *APIKeyHandler {
 	return &APIKeyHandler{
-		service:       service,
-		budgetService: budgetService,
+		service:        service,
+		budgetService:  budgetService,
+		creditsEnabled: creditsEnabled,
 	}
 }
 
@@ -29,6 +30,24 @@ func (h *APIKeyHandler) CreateAPIKey(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
 		})
+	}
+
+	if h.creditsEnabled {
+		if req.OrganizationID == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "organization_id is required when credits are enabled",
+			})
+		}
+		if req.UserID == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "user_id is required when credits are enabled",
+			})
+		}
+		if req.ProjectID == nil || *req.ProjectID == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "project_id is required when credits are enabled",
+			})
+		}
 	}
 
 	apiKey, err := h.service.CreateAPIKey(c.Context(), &req)

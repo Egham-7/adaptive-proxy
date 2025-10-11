@@ -8,6 +8,7 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/handlers"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -18,13 +19,15 @@ import (
 
 // ResponseService handles Anthropic Messages response processing and formatting
 type ResponseService struct {
-	modelRouter *model_router.ModelRouter
+	modelRouter  *model_router.ModelRouter
+	usageService *usage.Service
 }
 
 // NewResponseService creates a new ResponseService
-func NewResponseService(modelRouter *model_router.ModelRouter) *ResponseService {
+func NewResponseService(modelRouter *model_router.ModelRouter, usageService *usage.Service) *ResponseService {
 	return &ResponseService{
-		modelRouter: modelRouter,
+		modelRouter:  modelRouter,
+		usageService: usageService,
 	}
 }
 
@@ -33,11 +36,12 @@ func (rs *ResponseService) HandleNonStreamingResponse(
 	c *fiber.Ctx,
 	message *anthropic.Message,
 	requestID string,
+	provider string,
 	cacheSource string,
 ) error {
 	fiberlog.Debugf("[%s] Converting Anthropic response to Adaptive format", requestID)
 	// Convert response using format adapter
-	adaptiveResponse, err := format_adapter.AnthropicToAdaptive.ConvertResponse(message, "anthropic", cacheSource)
+	adaptiveResponse, err := format_adapter.AnthropicToAdaptive.ConvertResponse(message, provider, cacheSource)
 	if err != nil {
 		fiberlog.Errorf("[%s] Failed to convert Anthropic response: %v", requestID, err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -46,6 +50,30 @@ func (rs *ResponseService) HandleNonStreamingResponse(
 				"message": fmt.Sprintf("Response conversion error: %v", err),
 			},
 		})
+	}
+
+	// Record usage if usage service is available
+	if rs.usageService != nil {
+		apiKeyInterface := c.Locals("api_key")
+		if apiKey, ok := apiKeyInterface.(*models.APIKey); ok && apiKey != nil {
+			usageParams := models.RecordUsageParams{
+				APIKeyID:       apiKey.ID,
+				OrganizationID: apiKey.OrganizationID,
+				UserID:         apiKey.UserID,
+				Endpoint:       "/v1/messages",
+				Provider:       provider,
+				Model:          string(message.Model),
+				TokensInput:    int(adaptiveResponse.Usage.InputTokens),
+				TokensOutput:   int(adaptiveResponse.Usage.OutputTokens),
+				StatusCode:     200,
+				RequestID:      requestID,
+			}
+
+			_, err := rs.usageService.RecordUsage(c.UserContext(), usageParams)
+			if err != nil {
+				fiberlog.Errorf("[%s] Failed to record usage: %v", requestID, err)
+			}
+		}
 	}
 
 	fiberlog.Infof("[%s] Response converted successfully, sending to client", requestID)
@@ -59,11 +87,15 @@ func (rs *ResponseService) HandleStreamingResponse(
 	requestID string,
 	provider string,
 	cacheSource string,
+	model string,
+	endpoint string,
+	usageService *usage.Service,
+	apiKey *models.APIKey,
 ) error {
 	fiberlog.Infof("[%s] Starting Anthropic streaming response handling", requestID)
 
 	// Use the optimized stream handler that properly handles native Anthropic streams
-	return handlers.HandleAnthropicNative(c, anthropicStream, requestID, provider, cacheSource)
+	return handlers.HandleAnthropicNative(c, anthropicStream, requestID, provider, cacheSource, model, endpoint, usageService, apiKey)
 }
 
 // HandleError handles error responses for Anthropic Messages API

@@ -9,6 +9,7 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
 	"github.com/Egham-7/adaptive-proxy/internal/services/fallback"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -25,6 +26,7 @@ type MessagesHandler struct {
 	modelRouter     *model_router.ModelRouter
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker
 	fallbackService *fallback.FallbackService
+	usageService    *usage.Service
 }
 
 // NewMessagesHandler creates a new MessagesHandler with Anthropic-specific services
@@ -32,15 +34,17 @@ func NewMessagesHandler(
 	cfg *config.Config,
 	modelRouter *model_router.ModelRouter,
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker,
+	usageService *usage.Service,
 ) *MessagesHandler {
 	return &MessagesHandler{
 		cfg:             cfg,
 		requestSvc:      messages.NewRequestService(),
 		messagesSvc:     messages.NewMessagesService(),
-		responseSvc:     messages.NewResponseService(modelRouter),
+		responseSvc:     messages.NewResponseService(modelRouter, usageService),
 		modelRouter:     modelRouter,
 		circuitBreakers: circuitBreakers,
 		fallbackService: fallback.NewFallbackService(cfg),
+		usageService:    usageService,
 	}
 }
 

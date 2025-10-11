@@ -13,14 +13,13 @@ import (
 	geminiapi "github.com/Egham-7/adaptive-proxy/internal/api/gemini"
 	"github.com/Egham-7/adaptive-proxy/internal/config"
 	"github.com/Egham-7/adaptive-proxy/internal/models"
-	"github.com/Egham-7/adaptive-proxy/internal/services/apikey"
-	"github.com/Egham-7/adaptive-proxy/internal/services/budget"
 	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
 	"github.com/Egham-7/adaptive-proxy/internal/services/database"
-	apikeyMiddleware "github.com/Egham-7/adaptive-proxy/internal/services/middleware"
+	"github.com/Egham-7/adaptive-proxy/internal/services/middleware"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
 	"github.com/Egham-7/adaptive-proxy/internal/services/openai/chat/completions"
 	"github.com/Egham-7/adaptive-proxy/internal/services/select_model"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
@@ -42,6 +41,19 @@ type Proxy struct {
 	db               *database.DB
 	builder          *Builder
 	enabledEndpoints map[string]bool
+	usageTracker     *middleware.UsageTracker
+}
+
+type proxyServices struct {
+	usageService   *usage.Service
+	creditsService *usage.CreditsService
+	apiKeyService  *usage.APIKeyService
+	usageTracker   *middleware.UsageTracker
+}
+
+type proxyInfrastructure struct {
+	redis *redis.Client
+	db    *database.DB
 }
 
 // NewProxy creates a new Proxy instance with the given configuration.
@@ -87,48 +99,40 @@ func (p *Proxy) Run() error {
 	// Create Fiber app
 	p.app = createFiberApp(p.config)
 
-	// Setup middleware
-	setupMiddleware(p.app, p.config, p)
-
-	// Create Redis client (optional)
-	var err error
-	p.redis, err = createRedisClient(p.config)
+	// === Infrastructure Setup ===
+	infra, err := initializeInfrastructure(p.config)
 	if err != nil {
-		return fmt.Errorf("failed to create Redis client: %w", err)
+		return err
 	}
+	p.redis = infra.redis
+	p.db = infra.db
+
+	// Setup cleanup handlers
 	if p.redis != nil {
 		defer func() {
 			if err := p.redis.Close(); err != nil {
 				fiberlog.Errorf("Failed to close Redis client: %v", err)
 			}
 		}()
-		fiberlog.Info("Redis client initialized successfully")
-	} else {
-		fiberlog.Info("Redis not configured - caching disabled")
 	}
-
-	// Create Database client (optional)
-	if p.config.Database != nil {
-		p.db, err = database.New(*p.config.Database)
-		if err != nil {
-			return fmt.Errorf("failed to create database connection: %w", err)
-		}
+	if p.db != nil {
 		defer func() {
 			if err := p.db.Close(); err != nil {
 				fiberlog.Errorf("Failed to close database connection: %v", err)
 			}
 		}()
-		fiberlog.Infof("Database (%s) initialized successfully", p.db.DriverName())
-
-		if err := runDatabaseMigrations(p.db); err != nil {
-			return fmt.Errorf("failed to run database migrations: %w", err)
-		}
-		fiberlog.Info("Database migrations completed successfully")
-	} else {
-		fiberlog.Info("Database not configured")
 	}
 
-	// Setup routes
+	// === Services Initialization ===
+	services := initializeServices(p.db, p.config)
+	if services != nil {
+		p.usageTracker = services.usageTracker
+	}
+
+	// === Middleware Setup ===
+	setupMiddleware(p.app, p.config, p)
+
+	// === Routes Setup ===
 	if err := setupRoutes(p.app, p.config, p.redis, p.db, p.enabledEndpoints); err != nil {
 		return fmt.Errorf("failed to setup routes: %w", err)
 	}
@@ -263,8 +267,7 @@ func setupMiddleware(app *fiber.App, cfg *config.Config, p *Proxy) {
 		keyFunc := rlCfg.KeyFunc
 		if keyFunc == nil {
 			keyFunc = func(c *fiber.Ctx) string {
-				apiKey := c.Get("X-Stainless-API-Key")
-				if apiKey != "" {
+				if apiKey, ok := c.Locals("api_key_raw").(string); ok && apiKey != "" {
 					return apiKey
 				}
 				return c.IP()
@@ -286,8 +289,7 @@ func setupMiddleware(app *fiber.App, cfg *config.Config, p *Proxy) {
 			Expiration:        1 * time.Minute,
 			LimiterMiddleware: limiter.SlidingWindow{},
 			KeyGenerator: func(c *fiber.Ctx) string {
-				apiKey := c.Get("X-Stainless-API-Key")
-				if apiKey != "" {
+				if apiKey, ok := c.Locals("api_key_raw").(string); ok && apiKey != "" {
 					return apiKey
 				}
 				return c.IP()
@@ -373,6 +375,11 @@ func setupMiddleware(app *fiber.App, cfg *config.Config, p *Proxy) {
 		for _, middleware := range p.builder.GetMiddlewares() {
 			app.Use(middleware)
 		}
+	}
+
+	// Usage tracking middleware (if services are initialized)
+	if p.usageTracker != nil {
+		app.Use(p.usageTracker.TrackUsage())
 	}
 
 	// Profiler (dev only)
@@ -504,19 +511,20 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	}
 
 	// Create completion service
-	completionSvc := completions.NewCompletionService(cfg, respSvc, circuitBreakers)
+	var usageSvc *usage.Service
 
-	// Create select model services
-	selectModelReqSvc := select_model.NewRequestService()
-	selectModelSvc := select_model.NewService(modelRouter)
-	selectModelRespSvc := select_model.NewResponseService()
-
-	// Initialize API key services if database is available
-	var apiKeyMiddleware *apikeyMiddleware.APIKeyMiddleware
+	// Initialize API key and usage services if database is available
+	var apiKeyMiddleware *middleware.APIKeyMiddleware
+	var creditsSvc *usage.CreditsService
 	if db != nil && cfg.Server.APIKeyConfig != nil && cfg.Server.APIKeyConfig.Enabled {
-		apiKeySvc := apikey.NewService(db.DB)
-		budgetSvc := budget.NewService(db.DB)
-		apiKeyMiddleware = apikeyMiddleware.NewAPIKeyMiddlewareWithBudget(apiKeySvc, budgetSvc, cfg.Server.APIKeyConfig)
+		apiKeySvc := usage.NewAPIKeyService(db.DB)
+
+		if cfg.Server.APIKeyConfig.CreditsEnabled {
+			creditsSvc = usage.NewCreditsService(db.DB)
+		}
+
+		usageSvc = usage.NewService(db.DB, creditsSvc)
+		apiKeyMiddleware = middleware.NewAPIKeyMiddleware(apiKeySvc, usageSvc, cfg.Server.APIKeyConfig)
 
 		// Apply API key middleware globally if required
 		if cfg.Server.APIKeyConfig.RequireForAll {
@@ -526,9 +534,16 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 		}
 
 		// Register admin API key routes
-		apiKeyHandler := api.NewAPIKeyHandler(apiKeySvc, budgetSvc)
+		apiKeyHandler := api.NewAPIKeyHandler(apiKeySvc, usageSvc, cfg.Server.APIKeyConfig.CreditsEnabled)
 		apiKeyHandler.RegisterRoutes(app, "/admin/api-keys")
 	}
+
+	completionSvc := completions.NewCompletionService(cfg, respSvc, circuitBreakers, usageSvc)
+
+	// Create select model services
+	selectModelReqSvc := select_model.NewRequestService()
+	selectModelSvc := select_model.NewService(modelRouter)
+	selectModelRespSvc := select_model.NewResponseService()
 
 	// Initialize handlers (only for enabled endpoints)
 	var chatCompletionHandler *api.CompletionHandler
@@ -554,11 +569,11 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	}
 
 	if isEnabled("messages") {
-		messagesHandler = api.NewMessagesHandler(cfg, modelRouter, circuitBreakers)
+		messagesHandler = api.NewMessagesHandler(cfg, modelRouter, circuitBreakers, usageSvc)
 	}
 
 	if isEnabled("generate") {
-		generateHandler = geminiapi.NewGenerateHandler(cfg, modelRouter, circuitBreakers)
+		generateHandler = geminiapi.NewGenerateHandler(cfg, modelRouter, circuitBreakers, usageSvc)
 	}
 
 	if isEnabled("count_tokens") {
@@ -623,16 +638,82 @@ func welcomeHandler() fiber.Handler {
 }
 
 func runDatabaseMigrations(db *database.DB) error {
-	// AutoMigrate works for all databases now with PrepareStmt disabled for ClickHouse
-	apiKeySvc := apikey.NewService(db.DB)
+	apiKeySvc := usage.NewAPIKeyService(db.DB)
 	if err := apiKeySvc.AutoMigrate(); err != nil {
 		return fmt.Errorf("failed to migrate api_keys table: %w", err)
 	}
 
-	budgetSvc := budget.NewService(db.DB)
-	if err := budgetSvc.AutoMigrate(); err != nil {
-		return fmt.Errorf("failed to migrate api_key_usage table: %w", err)
+	creditsSvc := usage.NewCreditsService(db.DB)
+	if err := creditsSvc.AutoMigrate(); err != nil {
+		return fmt.Errorf("failed to migrate credits tables: %w", err)
+	}
+
+	usageSvc := usage.NewService(db.DB, creditsSvc)
+	if err := usageSvc.AutoMigrate(); err != nil {
+		return fmt.Errorf("failed to migrate usage table: %w", err)
 	}
 
 	return nil
+}
+
+func initializeServices(db *database.DB, cfg *config.Config) *proxyServices {
+	if db == nil || cfg.Server.APIKeyConfig == nil || !cfg.Server.APIKeyConfig.Enabled {
+		return nil
+	}
+
+	apiKeySvc := usage.NewAPIKeyService(db.DB)
+
+	var creditsSvc *usage.CreditsService
+	if cfg.Server.APIKeyConfig.CreditsEnabled {
+		creditsSvc = usage.NewCreditsService(db.DB)
+	}
+
+	usageSvc := usage.NewService(db.DB, creditsSvc)
+
+	var usageTracker *middleware.UsageTracker
+	if usageSvc != nil {
+		usageTracker = middleware.NewUsageTracker(usageSvc, creditsSvc, cfg.Server.APIKeyConfig.CreditsEnabled)
+	}
+
+	return &proxyServices{
+		usageService:   usageSvc,
+		creditsService: creditsSvc,
+		apiKeyService:  apiKeySvc,
+		usageTracker:   usageTracker,
+	}
+}
+
+func initializeInfrastructure(cfg *config.Config) (*proxyInfrastructure, error) {
+	infra := &proxyInfrastructure{}
+
+	redisClient, err := createRedisClient(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Redis client: %w", err)
+	}
+	infra.redis = redisClient
+
+	if redisClient != nil {
+		fiberlog.Info("Redis client initialized successfully")
+	} else {
+		fiberlog.Info("Redis not configured - caching disabled")
+	}
+
+	if cfg.Database != nil {
+		db, err := database.New(*cfg.Database)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create database connection: %w", err)
+		}
+		infra.db = db
+
+		fiberlog.Infof("Database (%s) initialized successfully", db.DriverName())
+
+		if err := runDatabaseMigrations(db); err != nil {
+			return nil, fmt.Errorf("failed to run database migrations: %w", err)
+		}
+		fiberlog.Info("Database migrations completed successfully")
+	} else {
+		fiberlog.Info("Database not configured")
+	}
+
+	return infra, nil
 }

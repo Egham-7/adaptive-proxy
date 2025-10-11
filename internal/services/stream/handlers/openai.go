@@ -3,8 +3,10 @@ package handlers
 import (
 	"bufio"
 
+	"github.com/Egham-7/adaptive-proxy/internal/models"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/contracts"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/writers"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
@@ -14,14 +16,14 @@ import (
 )
 
 // HandleOpenAI manages OpenAI streaming response using proper layered architecture
-func HandleOpenAI(c *fiber.Ctx, resp *openai_ssestream.Stream[openai.ChatCompletionChunk], requestID, provider, cacheSource string) error {
+func HandleOpenAI(c *fiber.Ctx, resp *openai_ssestream.Stream[openai.ChatCompletionChunk], requestID, provider, cacheSource, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey) error {
 	fiberlog.Infof("[%s] Starting OpenAI stream handling", requestID)
 
 	// Create streaming pipeline - validates stream internally by reading first chunk
 	// If validation fails (429, 500, etc.), error is returned BEFORE HTTP streaming starts
 	// This allows fallback to trigger properly
 	factory := NewStreamFactory()
-	handler, err := factory.CreateOpenAIPipeline(resp, requestID, provider, cacheSource)
+	handler, err := factory.CreateOpenAIPipeline(resp, requestID, provider, cacheSource, model, endpoint, usageService, apiKey)
 	if err != nil {
 		fiberlog.Errorf("[%s] Stream validation failed: %v", requestID, err)
 		return err

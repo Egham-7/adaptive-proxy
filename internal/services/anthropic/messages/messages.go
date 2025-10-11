@@ -194,12 +194,16 @@ func (ms *MessagesService) HandleAnthropicProvider(
 		if err != nil {
 			return responseSvc.HandleError(c, err, requestID)
 		}
-		return responseSvc.HandleStreamingResponse(c, stream, requestID, provider, cacheSource)
+
+		// Extract API key from context
+		apiKey, _ := c.Locals("api_key").(*models.APIKey)
+
+		return responseSvc.HandleStreamingResponse(c, stream, requestID, provider, cacheSource, string(req.Model), "/v1/messages", responseSvc.usageService, apiKey)
 	}
 
 	message, err := ms.SendMessage(c.Context(), client, req, requestID)
 	if err != nil {
 		return responseSvc.HandleError(c, err, requestID)
 	}
-	return responseSvc.HandleNonStreamingResponse(c, message, requestID, cacheSource)
+	return responseSvc.HandleNonStreamingResponse(c, message, requestID, provider, cacheSource)
 }

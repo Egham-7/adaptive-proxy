@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"iter"
 
+	"github.com/Egham-7/adaptive-proxy/internal/models"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/contracts"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/writers"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
@@ -14,13 +16,13 @@ import (
 )
 
 // HandleGemini manages Gemini streaming response using proper layered architecture
-func HandleGemini(c *fiber.Ctx, streamIter iter.Seq2[*genai.GenerateContentResponse, error], requestID, provider, cacheSource string) error {
+func HandleGemini(c *fiber.Ctx, streamIter iter.Seq2[*genai.GenerateContentResponse, error], requestID, provider, cacheSource, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey) error {
 	fiberlog.Infof("[%s] Starting Gemini stream handling", requestID)
 
 	// Create streaming pipeline - validates stream internally by reading first chunk
 	// If validation fails (429, 500, etc.), error is returned BEFORE HTTP streaming starts
 	factory := NewStreamFactory()
-	handler, err := factory.CreateGeminiPipeline(streamIter, requestID, provider, cacheSource)
+	handler, err := factory.CreateGeminiPipeline(streamIter, requestID, provider, cacheSource, model, endpoint, usageService, apiKey)
 	if err != nil {
 		fiberlog.Errorf("[%s] Stream validation failed: %v", requestID, err)
 		return err

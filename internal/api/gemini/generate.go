@@ -10,6 +10,7 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/services/fallback"
 	"github.com/Egham-7/adaptive-proxy/internal/services/gemini/generate"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -25,6 +26,7 @@ type GenerateHandler struct {
 	modelRouter     *model_router.ModelRouter
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker
 	fallbackService *fallback.FallbackService
+	usageService    *usage.Service
 }
 
 // NewGenerateHandler creates a new GenerateHandler with Gemini-specific services
@@ -32,15 +34,17 @@ func NewGenerateHandler(
 	cfg *config.Config,
 	modelRouter *model_router.ModelRouter,
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker,
+	usageService *usage.Service,
 ) *GenerateHandler {
 	return &GenerateHandler{
 		cfg:             cfg,
 		requestSvc:      generate.NewRequestService(),
 		generateSvc:     generate.NewGenerateService(),
-		responseSvc:     generate.NewResponseService(modelRouter),
+		responseSvc:     generate.NewResponseService(modelRouter, usageService),
 		modelRouter:     modelRouter,
 		circuitBreakers: circuitBreakers,
 		fallbackService: fallback.NewFallbackService(cfg),
+		usageService:    usageService,
 	}
 }
 
@@ -348,7 +352,7 @@ func (h *GenerateHandler) executeNonStreamingWithCircuitBreaker(
 	}
 
 	// Handle the non-streaming response with proper cache source
-	err = h.responseSvc.HandleNonStreamingResponse(c, response, requestID, provider, cacheSource)
+	err = h.responseSvc.HandleNonStreamingResponse(c, response, requestID, provider, req.Model, cacheSource)
 	if err != nil {
 		// Record failure in circuit breaker
 		if cb != nil {
@@ -392,7 +396,7 @@ func (h *GenerateHandler) executeStreamingWithCircuitBreaker(
 	}
 
 	// Handle the streaming response with proper cache source
-	err = h.responseSvc.HandleStreamingResponse(c, streamIter, requestID, provider, cacheSource)
+	err = h.responseSvc.HandleStreamingResponse(c, streamIter, requestID, provider, cacheSource, req.Model, "/v1/models/"+req.Model+":streamGenerateContent")
 	if err != nil {
 		// Record failure in circuit breaker
 		if cb != nil {

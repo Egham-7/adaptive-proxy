@@ -6,6 +6,7 @@ import (
 
 	"github.com/Egham-7/adaptive-proxy/internal/config"
 	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -17,6 +18,9 @@ type Builder struct {
 	rateLimitConfig  *models.RateLimitConfig
 	timeoutConfig    *models.TimeoutConfig
 	enabledEndpoints map[string]bool
+	creditsEnabled   bool
+	stripeSecretKey  string
+	stripeWebhook    string
 }
 
 // New creates a new configuration builder with minimal defaults.
@@ -288,10 +292,44 @@ func (b *Builder) WithAPIKeyManagement(cfg models.APIKeyConfig) *Builder {
 
 // EnableAPIKeyAuth enables API key authentication with default settings.
 func (b *Builder) EnableAPIKeyAuth() *Builder {
-	cfg := models.DefaultAPIKeyConfig()
+	cfg := usage.DefaultAPIKeyConfig()
 	cfg.Enabled = true
 	b.cfg.Server.APIKeyConfig = &cfg
 	return b
+}
+
+// Credits and Billing configuration
+
+// EnableCredits enables credit-based billing system.
+// Requires database to be configured via WithDatabase().
+// Usage tracking will automatically deduct credits from organization balances.
+func (b *Builder) EnableCredits() *Builder {
+	b.creditsEnabled = true
+	return b
+}
+
+// WithStripe configures Stripe integration for credit purchases.
+// Requires EnableCredits() to be called first.
+// Example:
+//
+//	builder.EnableCredits().WithStripe(secretKey, webhookSecret)
+func (b *Builder) WithStripe(secretKey, webhookSecret string) *Builder {
+	b.stripeSecretKey = secretKey
+	b.stripeWebhook = webhookSecret
+	return b
+}
+
+// IsCreditsEnabled returns whether credit system is enabled.
+func (b *Builder) IsCreditsEnabled() bool {
+	return b.creditsEnabled
+}
+
+// GetStripeConfig returns Stripe configuration if configured.
+func (b *Builder) GetStripeConfig() (secretKey, webhookSecret string, configured bool) {
+	if b.stripeSecretKey != "" && b.stripeWebhook != "" {
+		return b.stripeSecretKey, b.stripeWebhook, true
+	}
+	return "", "", false
 }
 
 // GetMiddlewares returns all configured middlewares.

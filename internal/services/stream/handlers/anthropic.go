@@ -3,8 +3,10 @@ package handlers
 import (
 	"bufio"
 
+	"github.com/Egham-7/adaptive-proxy/internal/models"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/contracts"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/writers"
+	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/packages/ssestream"
@@ -14,13 +16,13 @@ import (
 )
 
 // HandleAnthropicNative handles native Anthropic SDK streams using proper layered architecture
-func HandleAnthropicNative(c *fiber.Ctx, stream *ssestream.Stream[anthropic.MessageStreamEventUnion], requestID, provider, cacheSource string) error {
+func HandleAnthropicNative(c *fiber.Ctx, stream *ssestream.Stream[anthropic.MessageStreamEventUnion], requestID, provider, cacheSource, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey) error {
 	fiberlog.Infof("[%s] Starting native Anthropic stream handling", requestID)
 
 	// Create streaming pipeline - validates stream internally by reading first event
 	// If validation fails (429, 500, etc.), error is returned BEFORE HTTP streaming starts
 	factory := NewStreamFactory()
-	handler, err := factory.CreateAnthropicNativePipeline(stream, requestID, provider, cacheSource)
+	handler, err := factory.CreateAnthropicNativePipeline(stream, requestID, provider, cacheSource, model, endpoint, usageService, apiKey)
 	if err != nil {
 		fiberlog.Errorf("[%s] Stream validation failed: %v", requestID, err)
 		return err

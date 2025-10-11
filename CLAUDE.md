@@ -256,6 +256,158 @@ server:
 3. **Env files loaded before YAML** - Ensures proper variable substitution
 4. **Config cannot be nil** - NewProxy() requires explicit config (no nil defaults)
 
+## Credits and Billing System (Optional)
+
+AdaptiveProxy includes an **optional** credit-based billing system with Stripe integration. This is **disabled by default** and must be explicitly enabled via the builder API.
+
+### Architecture
+
+**Usage Tracking** (Always On):
+- All API requests are tracked in `api_key_usage` table
+- Metadata includes: projectId, organizationId, clusterId, cacheTier, userId
+- Stored via GORM to PostgreSQL/MySQL/SQLite/ClickHouse
+
+**Credits System** (Opt-in):
+- Tracks organization credit balances in `organization_credits` table
+- Deducts credits automatically after each API request
+- Pre-flight check: blocks requests if balance <= 0
+- Post-flight deduction: allows slight overdraft (request already processed)
+- All transactions logged in `credit_transactions` table
+
+**Stripe Integration** (Opt-in):
+- Webhook endpoint: `/webhooks/stripe`
+- Handles: `checkout.session.completed`, `payment_intent.succeeded`
+- Automatically adds credits on successful payment
+
+### Enabling Credits
+
+```go
+builder := config.New().
+    Port("8080").
+
+    // 1. Database required for credits
+    WithDatabase(models.DatabaseConfig{
+        Type:     models.PostgreSQL,
+        DSN:      os.Getenv("DATABASE_URL"),
+    }).
+
+    // 2. Enable API key management (required)
+    EnableAPIKeyAuth().
+
+    // 3. Enable credits system
+    EnableCredits().
+
+    // 4. Optional: Enable Stripe for purchases
+    WithStripe(
+        os.Getenv("STRIPE_SECRET_KEY"),
+        os.Getenv("STRIPE_WEBHOOK_SECRET"),
+    ).
+
+    AddOpenAICompatibleProvider("openai", ...)
+
+proxy := config.NewProxyWithBuilder(builder)
+proxy.Run()
+```
+
+### Credit Flow
+
+1. **Pre-Request Check**: Middleware checks if organization balance > 0
+   - If balance <= 0: Returns `402 Payment Required`
+   - If balance > 0: Allow request to proceed
+
+2. **Process Request**: Normal LLM provider call
+
+3. **Post-Request Deduction**:
+   - Calculate actual cost from provider response
+   - Deduct from organization balance (can go negative)
+   - Create transaction record with metadata
+   - Link to `api_usage_id` for audit trail
+
+4. **Future Requests**: Blocked if balance <= 0 after deduction
+
+### Database Schema
+
+**api_key_usage** (usage tracking):
+- `metadata` (JSONB): Flexible map[string]any for consumer-specific data
+  - `project_id`, `organization_id`, `cluster_id`, `cache_tier`, `user_id`
+  - No hardcoded schema - general purpose proxy design
+
+**organization_credits** (opt-in):
+- `balance`: Current credit balance (USD)
+- `total_purchased`: Lifetime purchases
+- `total_used`: Lifetime usage
+
+**credit_transactions** (opt-in):
+- Links to: `organization_id`, `user_id`, `api_key_id`, `api_usage_id`
+- Types: `purchase`, `usage`, `refund`, `promotional`
+- Stripe fields: `stripe_payment_intent_id`, `stripe_session_id`
+
+### Stripe Webhook Setup
+
+Configure Stripe CLI for local testing:
+```bash
+stripe listen --forward-to localhost:8080/webhooks/stripe
+```
+
+Production webhook events to handle:
+- `checkout.session.completed` - Add credits after successful purchase
+- `payment_intent.succeeded` - Confirm payment processed
+
+### Credits Service API
+
+Located in `internal/services/credits/service.go`:
+
+```go
+// Check balance before processing
+credit, err := creditsService.GetOrganizationCredit(ctx, organizationID)
+if credit.Balance <= 0 {
+    return ErrInsufficientCredits
+}
+
+// Deduct after processing (allows overdraft)
+transaction, err := creditsService.DeductCredits(ctx, DeductCreditsParams{
+    OrganizationID: "org_123",
+    UserID:         "user_456",
+    Amount:         0.05,
+    Description:    "API usage",
+    Metadata:       map[string]any{
+        "provider": "openai",
+        "model":    "gpt-4",
+        "tokens_input": 100,
+        "tokens_output": 50,
+    },
+    APIKeyID:   "key_prefix",
+    APIUsageID: usageID,
+})
+
+// Add credits (purchase, refund, promotional)
+transaction, err := creditsService.AddCredits(ctx, AddCreditsParams{
+    OrganizationID:        "org_123",
+    UserID:                "user_456",
+    Amount:                10.00,
+    Type:                  CreditTransactionPurchase,
+    Description:           "Credit purchase via Stripe",
+    StripePaymentIntentID: "pi_123",
+    StripeSessionID:       "cs_123",
+})
+```
+
+### Design Principles
+
+1. **Opt-in**: Credits disabled by default - proxy remains general-purpose
+2. **No Domain Coupling**: No hardcoded concepts like "projects" or "clusters"
+3. **Flexible Metadata**: Consumers can store any data in JSONB metadata field
+4. **Separation of Concerns**: Usage tracking ≠ Credits ≠ Stripe
+5. **Performance**: Pre-flight check prevents unnecessary LLM calls
+
+### Migration from Frontend
+
+If migrating from frontend-based credit management:
+- Remove tRPC `recordApiUsage` calls in frontend
+- Remove credit deduction logic in frontend routes
+- Frontend now only displays credit balance (read-only)
+- All tracking and deduction happens in Go proxy automatically
+
 ## API Endpoints
 
 ### Chat Completions - `/v1/chat/completions`
