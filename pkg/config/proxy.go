@@ -536,6 +536,15 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 		// Register admin API key routes
 		apiKeyHandler := api.NewAPIKeyHandler(apiKeySvc, usageSvc, cfg.Server.APIKeyConfig.CreditsEnabled)
 		apiKeyHandler.RegisterRoutes(app, "/admin/api-keys")
+
+		// Register credits routes if enabled
+		if cfg.Server.APIKeyConfig.CreditsEnabled && creditsSvc != nil {
+			creditsHandler := api.NewCreditsHandler(creditsSvc)
+			creditsGroup := app.Group("/admin/credits")
+			creditsGroup.Get("/balance/:organization_id", creditsHandler.GetBalance)
+			creditsGroup.Post("/check", creditsHandler.CheckCredits)
+			creditsGroup.Get("/transactions/:organization_id", creditsHandler.GetTransactionHistory)
+		}
 	}
 
 	completionSvc := completions.NewCompletionService(cfg, respSvc, circuitBreakers, usageSvc)
