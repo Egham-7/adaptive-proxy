@@ -347,7 +347,7 @@ func (h *APIKeyHandler) MigrateFromPrisma(c *fiber.Ctx) error {
 		})
 	}
 
-	metadata := map[string]interface{}{
+	metadata := map[string]string{
 		"prisma_id": req.ID,
 		"user_id":   req.UserID,
 	}
