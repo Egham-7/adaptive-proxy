@@ -8,6 +8,7 @@ import (
 // directly without using GORM's AutoMigrate (which has issues with ClickHouse driver)
 func RunClickHouseMigrations(db *gorm.DB) error {
 	// Create api_keys table
+	// #nosec G101 -- This is a SQL schema definition, not hardcoded credentials
 	apiKeysSQL := `
 	CREATE TABLE IF NOT EXISTS api_keys (
 		id UInt64,
