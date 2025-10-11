@@ -623,18 +623,7 @@ func welcomeHandler() fiber.Handler {
 }
 
 func runDatabaseMigrations(db *database.DB) error {
-	// Use custom migration for ClickHouse to avoid AutoMigrate issues
-	// The ClickHouse driver's Nullable() method returns nil, causing panics in GORM's migrator
-	if db.DriverName() == "clickhouse" {
-		fiberlog.Info("Running custom ClickHouse migrations...")
-		if err := database.RunClickHouseMigrations(db.DB); err != nil {
-			return fmt.Errorf("failed to run ClickHouse migrations: %w", err)
-		}
-		fiberlog.Info("ClickHouse migrations completed successfully")
-		return nil
-	}
-
-	// For other databases, use GORM's AutoMigrate
+	// AutoMigrate works for all databases now with PrepareStmt disabled for ClickHouse
 	apiKeySvc := apikey.NewService(db.DB)
 	if err := apiKeySvc.AutoMigrate(); err != nil {
 		return fmt.Errorf("failed to migrate api_keys table: %w", err)

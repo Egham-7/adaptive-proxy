@@ -33,7 +33,12 @@ func newClickHouse(config models.DatabaseConfig) (*DB, error) {
 		DefaultCompression:           "LZ4",
 		DefaultIndexType:             "minmax",
 		DefaultTableEngineOpts:       "ENGINE=MergeTree() ORDER BY id",
-	}), &gorm.Config{})
+	}), &gorm.Config{
+		// Disable prepared statements for ClickHouse - the driver has incomplete support
+		// This prevents panics and errors with SELECT queries and column introspection
+		// See: https://github.com/go-gorm/gorm/issues/7493
+		PrepareStmt: false,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ClickHouse connection: %w", err)
 	}
