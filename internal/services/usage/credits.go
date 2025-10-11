@@ -95,7 +95,7 @@ func (s *CreditsService) DeductCredits(ctx context.Context, params models.Deduct
 		newBalance := credit.Balance - params.Amount
 		newTotalUsed := credit.TotalUsed + params.Amount
 
-		if err := tx.Model(&credit).Updates(map[string]interface{}{
+		if err := tx.Model(&credit).Updates(map[string]any{
 			"balance":    newBalance,
 			"total_used": newTotalUsed,
 		}).Error; err != nil {
@@ -158,7 +158,7 @@ func (s *CreditsService) AddCredits(ctx context.Context, params models.AddCredit
 
 		// Update balance
 		newBalance := credit.Balance + params.Amount
-		updates := map[string]interface{}{
+		updates := map[string]any{
 			"balance": newBalance,
 		}
 

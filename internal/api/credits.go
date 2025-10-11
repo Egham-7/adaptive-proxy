@@ -103,15 +103,15 @@ type GetTransactionHistoryResponse struct {
 
 // TransactionItem represents a single transaction
 type TransactionItem struct {
-	ID             string                 `json:"id"`
-	OrganizationID string                 `json:"organization_id"`
-	UserID         string                 `json:"user_id"`
-	Type           string                 `json:"type"`
-	Amount         float64                `json:"amount"`
-	BalanceAfter   float64                `json:"balance_after"`
-	Description    string                 `json:"description"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
-	CreatedAt      string                 `json:"created_at"`
+	ID             string         `json:"id"`
+	OrganizationID string         `json:"organization_id"`
+	UserID         string         `json:"user_id"`
+	Type           string         `json:"type"`
+	Amount         float64        `json:"amount"`
+	BalanceAfter   float64        `json:"balance_after"`
+	Description    string         `json:"description"`
+	Metadata       map[string]any `json:"metadata,omitempty"`
+	CreatedAt      string         `json:"created_at"`
 }
 
 // GetTransactionHistory retrieves transaction history for an organization

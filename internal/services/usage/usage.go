@@ -127,7 +127,7 @@ func (s *Service) GetUsageStats(ctx context.Context, apiKeyID uint, startDate, e
 	return &stats, nil
 }
 
-func (s *Service) GetUsageByPeriod(ctx context.Context, apiKeyID uint, startDate, endDate time.Time, groupBy string) ([]map[string]interface{}, error) {
+func (s *Service) GetUsageByPeriod(ctx context.Context, apiKeyID uint, startDate, endDate time.Time, groupBy string) ([]map[string]any, error) {
 	query := s.db.WithContext(ctx).
 		Model(&models.APIKeyUsage{}).
 		Where("api_key_id = ?", apiKeyID)
@@ -165,9 +165,9 @@ func (s *Service) GetUsageByPeriod(ctx context.Context, apiKeyID uint, startDate
 		}
 	}
 
-	results := make([]map[string]interface{}, 0, len(periodMap))
+	results := make([]map[string]any, 0, len(periodMap))
 	for period, stats := range periodMap {
-		results = append(results, map[string]interface{}{
+		results = append(results, map[string]any{
 			"period":           period,
 			"total_requests":   stats.TotalRequests,
 			"total_cost":       stats.TotalCost,
