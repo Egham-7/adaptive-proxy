@@ -32,6 +32,8 @@ func RunClickHouseMigrations(db *gorm.DB) error {
 		) ENGINE = MergeTree()
 		ORDER BY id`,
 
+		`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS project_id Nullable(String)`,
+
 		`CREATE TABLE IF NOT EXISTS api_key_usages (
 			id UInt32,
 			api_key_id UInt32,
