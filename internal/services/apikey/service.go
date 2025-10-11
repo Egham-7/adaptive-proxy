@@ -265,3 +265,12 @@ func (s *Service) GetByHash(ctx context.Context, keyHash string) (*models.APIKey
 
 	return &apiKey, nil
 }
+
+// MigrateAPIKey inserts a pre-existing API key from Prisma into the database.
+// Deprecated: This is for migration purposes only and will be removed after migration is complete.
+func (s *Service) MigrateAPIKey(ctx context.Context, apiKey *models.APIKey) error {
+	if err := s.db.WithContext(ctx).Create(apiKey).Error; err != nil {
+		return fmt.Errorf("failed to migrate API key: %w", err)
+	}
+	return nil
+}

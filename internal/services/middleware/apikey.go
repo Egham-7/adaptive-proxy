@@ -20,8 +20,8 @@ func NewAPIKeyMiddleware(service *apikey.Service, config *models.APIKeyConfig) *
 		defaultConfig := models.DefaultAPIKeyConfig()
 		config = &defaultConfig
 	}
-	if config.HeaderName == "" {
-		config.HeaderName = "X-API-Key"
+	if len(config.HeaderNames) == 0 {
+		config.HeaderNames = []string{"X-API-Key", "X-Stainless-API-Key"}
 	}
 	return &APIKeyMiddleware{
 		service: service,
@@ -168,9 +168,11 @@ func (m *APIKeyMiddleware) RequireScope(requiredScopes ...string) fiber.Handler 
 }
 
 func (m *APIKeyMiddleware) extractAPIKey(c *fiber.Ctx) string {
-	key := c.Get(m.config.HeaderName)
-	if key != "" {
-		return strings.TrimSpace(key)
+	for _, headerName := range m.config.HeaderNames {
+		key := c.Get(headerName)
+		if key != "" {
+			return strings.TrimSpace(key)
+		}
 	}
 
 	authHeader := c.Get("Authorization")

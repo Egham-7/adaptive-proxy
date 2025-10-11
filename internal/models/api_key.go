@@ -33,16 +33,16 @@ func (APIKey) TableName() string {
 }
 
 type APIKeyConfig struct {
-	Enabled        bool   `yaml:"enabled" json:"enabled"`
-	HeaderName     string `yaml:"header_name,omitempty" json:"header_name,omitempty"`
-	RequireForAll  bool   `yaml:"require_for_all,omitempty" json:"require_for_all,omitempty"`
-	AllowAnonymous bool   `yaml:"allow_anonymous,omitempty" json:"allow_anonymous,omitempty"`
+	Enabled        bool     `yaml:"enabled" json:"enabled"`
+	HeaderNames    []string `yaml:"header_names,omitempty" json:"header_names,omitempty"`
+	RequireForAll  bool     `yaml:"require_for_all,omitempty" json:"require_for_all,omitempty"`
+	AllowAnonymous bool     `yaml:"allow_anonymous,omitempty" json:"allow_anonymous,omitempty"`
 }
 
 func DefaultAPIKeyConfig() APIKeyConfig {
 	return APIKeyConfig{
 		Enabled:        false,
-		HeaderName:     "X-API-Key",
+		HeaderNames:    []string{"X-API-Key", "X-Stainless-API-Key"},
 		RequireForAll:  false,
 		AllowAnonymous: true,
 	}

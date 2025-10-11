@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"strconv"
 	"time"
 
@@ -154,6 +155,9 @@ func (h *APIKeyHandler) RegisterRoutes(app *fiber.App, prefix string) {
 	apiKeys.Get("/:id/usage", h.GetUsage)
 	apiKeys.Get("/:id/stats", h.GetStats)
 	apiKeys.Post("/:id/reset-budget", h.ResetBudget)
+
+	// Deprecated: Use direct ClickHouse migration script instead
+	apiKeys.Post("/migrate", h.MigrateFromPrisma)
 }
 
 func (h *APIKeyHandler) GetUsage(c *fiber.Ctx) error {
@@ -278,5 +282,109 @@ func (h *APIKeyHandler) VerifyAPIKey(c *fiber.Ctx) error {
 		"expires_at":   apiKey.ExpiresAt,
 		"is_active":    apiKey.IsActive,
 		"last_used_at": apiKey.LastUsedAt,
+	})
+}
+
+// MigrateFromPrisma accepts API key data from Prisma and inserts it into ClickHouse.
+// Deprecated: This endpoint is for migration purposes only and will be removed after migration is complete.
+func (h *APIKeyHandler) MigrateFromPrisma(c *fiber.Ctx) error {
+	var req struct {
+		ID         string  `json:"id"`
+		UserID     string  `json:"userId"`
+		ProjectID  *string `json:"projectId"`
+		Name       string  `json:"name"`
+		KeyPrefix  string  `json:"keyPrefix"`
+		KeyHash    string  `json:"keyHash"`
+		Status     string  `json:"status"`
+		CreatedAt  string  `json:"createdAt"`
+		UpdatedAt  string  `json:"updatedAt"`
+		ExpiresAt  *string `json:"expiresAt"`
+		LastUsedAt *string `json:"lastUsedAt"`
+		Project    *struct {
+			Name string `json:"name"`
+		} `json:"project"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	var expiresAt *time.Time
+	if req.ExpiresAt != nil {
+		t, err := time.Parse(time.RFC3339, *req.ExpiresAt)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid expiresAt format",
+			})
+		}
+		expiresAt = &t
+	}
+
+	var lastUsedAt *time.Time
+	if req.LastUsedAt != nil {
+		t, err := time.Parse(time.RFC3339, *req.LastUsedAt)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid lastUsedAt format",
+			})
+		}
+		lastUsedAt = &t
+	}
+
+	createdAt, err := time.Parse(time.RFC3339, req.CreatedAt)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid createdAt format",
+		})
+	}
+
+	updatedAt, err := time.Parse(time.RFC3339, req.UpdatedAt)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid updatedAt format",
+		})
+	}
+
+	metadata := map[string]interface{}{
+		"prisma_id": req.ID,
+		"user_id":   req.UserID,
+	}
+	if req.ProjectID != nil {
+		metadata["project_id"] = *req.ProjectID
+	}
+	if req.Project != nil {
+		metadata["project_name"] = req.Project.Name
+	}
+
+	metadataJSON, err := json.Marshal(metadata)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to encode metadata",
+		})
+	}
+
+	apiKey := &models.APIKey{
+		Name:       req.Name,
+		KeyHash:    req.KeyHash,
+		KeyPrefix:  req.KeyPrefix,
+		Metadata:   string(metadataJSON),
+		IsActive:   req.Status == "active",
+		ExpiresAt:  expiresAt,
+		LastUsedAt: lastUsedAt,
+		CreatedAt:  createdAt,
+		UpdatedAt:  updatedAt,
+	}
+
+	if err := h.service.MigrateAPIKey(c.Context(), apiKey); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"message":    "API key migrated successfully",
+		"key_prefix": req.KeyPrefix,
 	})
 }

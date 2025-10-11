@@ -279,8 +279,8 @@ func (b *Builder) WithDatabase(cfg models.DatabaseConfig) *Builder {
 
 // WithAPIKeyManagement enables API key management and authentication.
 func (b *Builder) WithAPIKeyManagement(cfg models.APIKeyConfig) *Builder {
-	if cfg.HeaderName == "" {
-		cfg.HeaderName = "X-API-Key"
+	if len(cfg.HeaderNames) == 0 {
+		cfg.HeaderNames = []string{"X-API-Key"}
 	}
 	b.cfg.Server.APIKeyConfig = &cfg
 	return b

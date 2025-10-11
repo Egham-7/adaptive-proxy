@@ -13,8 +13,11 @@ import (
 	geminiapi "github.com/Egham-7/adaptive-proxy/internal/api/gemini"
 	"github.com/Egham-7/adaptive-proxy/internal/config"
 	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/apikey"
+	"github.com/Egham-7/adaptive-proxy/internal/services/budget"
 	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
 	"github.com/Egham-7/adaptive-proxy/internal/services/database"
+	apikeyMiddleware "github.com/Egham-7/adaptive-proxy/internal/services/middleware"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
 	"github.com/Egham-7/adaptive-proxy/internal/services/openai/chat/completions"
 	"github.com/Egham-7/adaptive-proxy/internal/services/select_model"
@@ -121,7 +124,7 @@ func (p *Proxy) Run() error {
 	}
 
 	// Setup routes
-	if err := setupRoutes(p.app, p.config, p.redis, p.enabledEndpoints); err != nil {
+	if err := setupRoutes(p.app, p.config, p.redis, p.db, p.enabledEndpoints); err != nil {
 		return fmt.Errorf("failed to setup routes: %w", err)
 	}
 
@@ -470,7 +473,7 @@ func testRedisConnectionWithRetry(client *redis.Client) (*redis.Client, error) {
 	return nil, fmt.Errorf("failed to connect to Redis after %d attempts", maxAttempts)
 }
 
-func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, enabledEndpoints map[string]bool) error {
+func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, db *database.DB, enabledEndpoints map[string]bool) error {
 	// Create shared services
 	reqSvc := completions.NewRequestService()
 
@@ -502,6 +505,25 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	selectModelReqSvc := select_model.NewRequestService()
 	selectModelSvc := select_model.NewService(modelRouter)
 	selectModelRespSvc := select_model.NewResponseService()
+
+	// Initialize API key services if database is available
+	var apiKeyMiddleware *apikeyMiddleware.APIKeyMiddleware
+	if db != nil && cfg.Server.APIKeyConfig != nil && cfg.Server.APIKeyConfig.Enabled {
+		apiKeySvc := apikey.NewService(db.DB)
+		budgetSvc := budget.NewService(db.DB)
+		apiKeyMiddleware = apikeyMiddleware.NewAPIKeyMiddlewareWithBudget(apiKeySvc, budgetSvc, cfg.Server.APIKeyConfig)
+
+		// Apply API key middleware globally if required
+		if cfg.Server.APIKeyConfig.RequireForAll {
+			app.Use(apiKeyMiddleware.RequireAPIKey())
+		} else if !cfg.Server.APIKeyConfig.AllowAnonymous {
+			app.Use(apiKeyMiddleware.Authenticate())
+		}
+
+		// Register admin API key routes
+		apiKeyHandler := api.NewAPIKeyHandler(apiKeySvc, budgetSvc)
+		apiKeyHandler.RegisterRoutes(app, "/admin/api-keys")
+	}
 
 	// Initialize handlers (only for enabled endpoints)
 	var chatCompletionHandler *api.CompletionHandler
