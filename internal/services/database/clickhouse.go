@@ -23,7 +23,17 @@ func newClickHouse(config models.DatabaseConfig) (*DB, error) {
 		)
 	}
 
-	gormDB, err := gorm.Open(clickhouse.Open(dsn), &gorm.Config{})
+	gormDB, err := gorm.Open(clickhouse.New(clickhouse.Config{
+		DSN:                          dsn,
+		DisableDatetimePrecision:     false,
+		DontSupportRenameColumn:      false,
+		DontSupportEmptyDefaultValue: false,
+		SkipInitializeWithVersion:    false,
+		DefaultGranularity:           3,
+		DefaultCompression:           "LZ4",
+		DefaultIndexType:             "minmax",
+		DefaultTableEngineOpts:       "ENGINE=MergeTree() ORDER BY id",
+	}), &gorm.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ClickHouse connection: %w", err)
 	}
