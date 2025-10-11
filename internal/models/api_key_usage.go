@@ -11,7 +11,7 @@ type APIKeyUsage struct {
 	TokensInput  int       `gorm:"not null;default:0" json:"tokens_input"`
 	TokensOutput int       `gorm:"not null;default:0" json:"tokens_output"`
 	TokensTotal  int       `gorm:"not null;default:0" json:"tokens_total"`
-	Cost         float64   `gorm:"not null;type:decimal(10,6);default:0" json:"cost"`
+	Cost         float64   `gorm:"not null;default:0" json:"cost"`
 	Currency     string    `gorm:"not null;size:3;default:'USD'" json:"currency"`
 	StatusCode   int       `gorm:"not null;default:0" json:"status_code"`
 	LatencyMs    int       `gorm:"not null;default:0" json:"latency_ms"`

@@ -16,8 +16,8 @@ type APIKey struct {
 	Metadata        string    `gorm:"not null;type:text;default:''" json:"metadata,omitzero"`
 	Scopes          string    `gorm:"not null;type:text;default:''" json:"scopes,omitzero"`
 	RateLimitRpm    int       `gorm:"not null;default:0" json:"rate_limit_rpm,omitzero"`
-	BudgetLimit     float64   `gorm:"not null;type:decimal(10,2);default:0" json:"budget_limit,omitzero"`
-	BudgetUsed      float64   `gorm:"not null;type:decimal(10,2);default:0" json:"budget_used"`
+	BudgetLimit     float64   `gorm:"not null;default:0" json:"budget_limit,omitzero"`
+	BudgetUsed      float64   `gorm:"not null;default:0" json:"budget_used"`
 	BudgetCurrency  string    `gorm:"not null;size:3;default:'USD'" json:"budget_currency"`
 	BudgetResetType string    `gorm:"not null;size:20;default:''" json:"budget_reset_type,omitzero"`
 	BudgetResetAt   time.Time `gorm:"not null" json:"budget_reset_at,omitzero"`
