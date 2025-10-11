@@ -119,6 +119,11 @@ func (p *Proxy) Run() error {
 			}
 		}()
 		fiberlog.Infof("Database (%s) initialized successfully", p.db.DriverName())
+
+		if err := runDatabaseMigrations(p.db); err != nil {
+			return fmt.Errorf("failed to run database migrations: %w", err)
+		}
+		fiberlog.Info("Database migrations completed successfully")
 	} else {
 		fiberlog.Info("Database not configured")
 	}
@@ -615,4 +620,18 @@ func welcomeHandler() fiber.Handler {
 			},
 		})
 	}
+}
+
+func runDatabaseMigrations(db *database.DB) error {
+	apiKeySvc := apikey.NewService(db.DB)
+	if err := apiKeySvc.AutoMigrate(); err != nil {
+		return fmt.Errorf("failed to migrate api_keys table: %w", err)
+	}
+
+	budgetSvc := budget.NewService(db.DB)
+	if err := budgetSvc.AutoMigrate(); err != nil {
+		return fmt.Errorf("failed to migrate api_key_usage table: %w", err)
+	}
+
+	return nil
 }
