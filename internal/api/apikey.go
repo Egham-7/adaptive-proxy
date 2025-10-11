@@ -59,11 +59,32 @@ func (h *APIKeyHandler) CreateAPIKey(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(apiKey)
 }
 
-func (h *APIKeyHandler) ListAPIKeys(c *fiber.Ctx) error {
+func (h *APIKeyHandler) ListAPIKeysByUserID(c *fiber.Ctx) error {
+	userID := c.Params("user_id")
 	limit := c.QueryInt("limit", 50)
 	offset := c.QueryInt("offset", 0)
 
-	apiKeys, total, err := h.service.ListAPIKeys(c.Context(), limit, offset)
+	apiKeys, total, err := h.service.ListAPIKeysByUserID(c.Context(), userID, limit, offset)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"data":   apiKeys,
+		"total":  total,
+		"limit":  limit,
+		"offset": offset,
+	})
+}
+
+func (h *APIKeyHandler) ListAPIKeysByProjectID(c *fiber.Ctx) error {
+	projectID := c.Params("project_id")
+	limit := c.QueryInt("limit", 50)
+	offset := c.QueryInt("offset", 0)
+
+	apiKeys, total, err := h.service.ListAPIKeysByProjectID(c.Context(), projectID, limit, offset)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
@@ -162,7 +183,8 @@ func (h *APIKeyHandler) RegisterRoutes(app *fiber.App, prefix string) {
 	apiKeys := app.Group(prefix)
 
 	apiKeys.Post("/", h.CreateAPIKey)
-	apiKeys.Get("/", h.ListAPIKeys)
+	apiKeys.Get("/user/:user_id", h.ListAPIKeysByUserID)
+	apiKeys.Get("/project/:project_id", h.ListAPIKeysByProjectID)
 	apiKeys.Get("/:id", h.GetAPIKey)
 	apiKeys.Patch("/:id", h.UpdateAPIKey)
 	apiKeys.Post("/:id/revoke", h.RevokeAPIKey)

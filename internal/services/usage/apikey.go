@@ -113,11 +113,109 @@ func (s *APIKeyService) ListAPIKeys(ctx context.Context, limit, offset int) ([]m
 	var apiKeys []models.APIKey
 	var total int64
 
-	if err := s.db.WithContext(ctx).Model(&models.APIKey{}).Count(&total).Error; err != nil {
+	query := s.db.WithContext(ctx).Model(&models.APIKey{})
+
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count API keys: %w", err)
 	}
 
-	query := s.db.WithContext(ctx).Order("created_at DESC")
+	query = query.Order("created_at DESC")
+	if limit > 0 {
+		query = query.Limit(limit).Offset(offset)
+	}
+
+	if err := query.Find(&apiKeys).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to list API keys: %w", err)
+	}
+
+	responses := make([]models.APIKeyResponse, len(apiKeys))
+	for i, k := range apiKeys {
+		responses[i] = models.APIKeyResponse{
+			ID:              k.ID,
+			Name:            k.Name,
+			KeyPrefix:       k.KeyPrefix,
+			OrganizationID:  k.OrganizationID,
+			UserID:          k.UserID,
+			ProjectID:       k.ProjectID,
+			Metadata:        k.Metadata,
+			Scopes:          k.Scopes,
+			RateLimitRpm:    k.RateLimitRpm,
+			BudgetLimit:     k.BudgetLimit,
+			BudgetUsed:      k.BudgetUsed,
+			BudgetRemaining: CalculateBudgetRemaining(k.BudgetLimit, k.BudgetUsed),
+			BudgetCurrency:  k.BudgetCurrency,
+			BudgetResetType: k.BudgetResetType,
+			BudgetResetAt:   k.BudgetResetAt,
+			IsActive:        k.IsActive,
+			ExpiresAt:       k.ExpiresAt,
+			LastUsedAt:      k.LastUsedAt,
+			CreatedAt:       k.CreatedAt,
+			UpdatedAt:       k.UpdatedAt,
+		}
+	}
+
+	return responses, total, nil
+}
+
+func (s *APIKeyService) ListAPIKeysByUserID(ctx context.Context, userID string, limit, offset int) ([]models.APIKeyResponse, int64, error) {
+	var apiKeys []models.APIKey
+	var total int64
+
+	query := s.db.WithContext(ctx).Model(&models.APIKey{}).Where("user_id = ?", userID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count API keys: %w", err)
+	}
+
+	query = query.Order("created_at DESC")
+	if limit > 0 {
+		query = query.Limit(limit).Offset(offset)
+	}
+
+	if err := query.Find(&apiKeys).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to list API keys: %w", err)
+	}
+
+	responses := make([]models.APIKeyResponse, len(apiKeys))
+	for i, k := range apiKeys {
+		responses[i] = models.APIKeyResponse{
+			ID:              k.ID,
+			Name:            k.Name,
+			KeyPrefix:       k.KeyPrefix,
+			OrganizationID:  k.OrganizationID,
+			UserID:          k.UserID,
+			ProjectID:       k.ProjectID,
+			Metadata:        k.Metadata,
+			Scopes:          k.Scopes,
+			RateLimitRpm:    k.RateLimitRpm,
+			BudgetLimit:     k.BudgetLimit,
+			BudgetUsed:      k.BudgetUsed,
+			BudgetRemaining: CalculateBudgetRemaining(k.BudgetLimit, k.BudgetUsed),
+			BudgetCurrency:  k.BudgetCurrency,
+			BudgetResetType: k.BudgetResetType,
+			BudgetResetAt:   k.BudgetResetAt,
+			IsActive:        k.IsActive,
+			ExpiresAt:       k.ExpiresAt,
+			LastUsedAt:      k.LastUsedAt,
+			CreatedAt:       k.CreatedAt,
+			UpdatedAt:       k.UpdatedAt,
+		}
+	}
+
+	return responses, total, nil
+}
+
+func (s *APIKeyService) ListAPIKeysByProjectID(ctx context.Context, projectID string, limit, offset int) ([]models.APIKeyResponse, int64, error) {
+	var apiKeys []models.APIKey
+	var total int64
+
+	query := s.db.WithContext(ctx).Model(&models.APIKey{}).Where("project_id = ?", projectID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count API keys: %w", err)
+	}
+
+	query = query.Order("created_at DESC")
 	if limit > 0 {
 		query = query.Limit(limit).Offset(offset)
 	}
