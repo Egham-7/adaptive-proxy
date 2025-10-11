@@ -252,3 +252,16 @@ func (s *Service) UpdateAPIKey(ctx context.Context, id uint, updates map[string]
 	}
 	return nil
 }
+
+func (s *Service) GetByHash(ctx context.Context, keyHash string) (*models.APIKey, error) {
+	var apiKey models.APIKey
+
+	if err := s.db.WithContext(ctx).Where("key_hash = ?", keyHash).First(&apiKey).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("API key not found")
+		}
+		return nil, fmt.Errorf("failed to get API key by hash: %w", err)
+	}
+
+	return &apiKey, nil
+}

@@ -76,80 +76,47 @@ database:
 
 ## Usage
 
-### 1. Initialize API Key Service
+### Basic Setup
+
+API key management is automatically configured when you enable it via the builder. The proxy handles all the setup including database migrations, middleware registration, and route setup.
 
 ```go
 package main
 
 import (
-    "github.com/Egham-7/adaptive-proxy/internal/services/database"
-    "github.com/Egham-7/adaptive-proxy/internal/services/apikey"
-    "github.com/Egham-7/adaptive-proxy/internal/services/middleware"
-    "github.com/Egham-7/adaptive-proxy/internal/api"
-    "github.com/gofiber/fiber/v2"
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/internal/models"
 )
 
 func main() {
-    // Load config
-    cfg := config.New().
-        WithDatabase(dbConfig).
-        EnableAPIKeyAuth().
-        Build()
+    // Create builder with API key management enabled
+    builder := config.New().
+        Port("8080").
+        WithDatabase(models.DatabaseConfig{
+            Type:     models.PostgreSQL,
+            Host:     "localhost",
+            Port:     "5432",
+            User:     "postgres",
+            Password: "password",
+            Database: "adaptive_proxy",
+        }).
+        EnableAPIKeyAuth()
 
-    // Initialize database
-    db, err := database.New(*cfg.Database)
-    if err != nil {
+    // Create and run proxy - API key management is automatically set up
+    proxy := config.NewProxyWithBuilder(builder)
+    if err := proxy.Run(); err != nil {
         panic(err)
     }
-
-    // Run migrations
-    if err := apikey.Migrate(db.DB); err != nil {
-        panic(err)
-    }
-
-    // Create API key service
-    apikeyService := apikey.NewService(db.DB)
-
-    // Create middleware
-    apikeyMiddleware := middleware.NewAPIKeyMiddleware(
-        apikeyService,
-        cfg.Server.APIKeyConfig,
-    )
-
-    // Create API handler
-    apikeyHandler := api.NewAPIKeyHandler(apikeyService)
-
-    // Setup Fiber app
-    app := fiber.New()
-
-    // Apply authentication middleware globally
-    app.Use(apikeyMiddleware.Authenticate())
-
-    // Register API key management routes
-    apikeyHandler.RegisterRoutes(app, "/admin/api-keys")
-
-    // Protected route example
-    app.Get("/protected", 
-        apikeyMiddleware.RequireAPIKey(),
-        func(c *fiber.Ctx) error {
-            return c.JSON(fiber.Map{"message": "Access granted"})
-        },
-    )
-
-    // Scope-protected route
-    app.Post("/admin/users",
-        apikeyMiddleware.RequireAPIKey(),
-        apikeyMiddleware.RequireScope("admin", "users:write"),
-        func(c *fiber.Ctx) error {
-            return c.JSON(fiber.Map{"message": "User created"})
-        },
-    )
-
-    app.Listen(":8080")
 }
 ```
 
-### 2. Create API Keys
+That's it! The proxy automatically:
+- Runs database migrations for API key tables
+- Sets up authentication middleware
+- Registers API key management endpoints at `/admin/api-keys`
+- Configures rate limiting and usage tracking
+
+### Create API Keys
 
 **Request:**
 ```bash
@@ -183,7 +150,7 @@ curl -X POST http://localhost:8080/admin/api-keys \
 
 **⚠️ Important:** Save the `key` value immediately - it's only shown once during creation.
 
-### 3. Use API Keys
+### Use API Keys
 
 **Using X-API-Key header:**
 ```bash
@@ -201,7 +168,7 @@ curl http://localhost:8080/v1/chat/completions \
   -d '{"model": "gpt-4", "messages": [...]}'
 ```
 
-### 4. List API Keys
+### List API Keys
 
 ```bash
 curl http://localhost:8080/admin/api-keys?limit=10&offset=0
@@ -227,13 +194,13 @@ curl http://localhost:8080/admin/api-keys?limit=10&offset=0
 }
 ```
 
-### 5. Revoke API Key
+### Revoke API Key
 
 ```bash
 curl -X POST http://localhost:8080/admin/api-keys/1/revoke
 ```
 
-### 6. Update API Key
+### Update API Key
 
 ```bash
 curl -X PATCH http://localhost:8080/admin/api-keys/1 \
@@ -244,7 +211,7 @@ curl -X PATCH http://localhost:8080/admin/api-keys/1 \
   }'
 ```
 
-### 7. Delete API Key
+### Delete API Key
 
 ```bash
 curl -X DELETE http://localhost:8080/admin/api-keys/1
@@ -282,14 +249,8 @@ curl -X DELETE http://localhost:8080/admin/api-keys/1
 - Monitor key usage patterns and detect anomalies
 
 ### 5. Scope-Based Access Control
-```go
-// Require specific scopes
-app.Post("/admin/users",
-    apikeyMiddleware.RequireAPIKey(),
-    apikeyMiddleware.RequireScope("admin", "users:write"),
-    handler,
-)
-```
+
+Scopes can be assigned to API keys during creation. While the proxy doesn't enforce scope-based routing by default, you can access and validate scopes in custom middleware if needed. See the [Advanced Usage](#advanced-usage) section for details on implementing custom scope validation.
 
 ### 6. Per-Key Rate Limiting
 - Set custom rate limits per API key
@@ -320,46 +281,64 @@ CREATE INDEX idx_api_keys_is_active ON api_keys(is_active);
 CREATE INDEX idx_api_keys_expires_at ON api_keys(expires_at);
 ```
 
-## Middleware Options
+## Advanced Usage
 
-### 1. Optional Authentication
-```go
-// Authenticate if key provided, allow anonymous otherwise
-app.Use(apikeyMiddleware.Authenticate())
-```
+### Custom Middleware and Routes
 
-### 2. Required Authentication
-```go
-// Always require API key
-app.Use(apikeyMiddleware.RequireAPIKey())
-```
+If you need to extend the proxy with custom routes that access API key information, you can use the Fiber context locals that are automatically set by the authentication middleware:
 
-### 3. Scope Validation
 ```go
-// Require specific scopes
-app.Use(apikeyMiddleware.RequireScope("admin", "users:write"))
-```
+package main
 
-### 4. Access Key Information in Handlers
-```go
-app.Get("/profile", func(c *fiber.Ctx) error {
-    // Get API key object
-    apiKey := c.Locals("api_key").(*models.APIKey)
-    
-    // Get API key ID
-    keyID := c.Locals("api_key_id").(uint)
-    
-    // Get scopes
-    scopes := c.Locals("api_key_scopes").([]string)
-    
-    // Get rate limit
-    rateLimit := c.Locals("api_key_rate_limit").(int)
-    
-    return c.JSON(fiber.Map{
-        "key_id": keyID,
-        "scopes": scopes,
+import (
+    "github.com/Egham-7/adaptive-proxy/pkg/config"
+    "github.com/Egham-7/adaptive-proxy/internal/models"
+    "github.com/gofiber/fiber/v2"
+)
+
+func main() {
+    builder := config.New().
+        Port("8080").
+        WithDatabase(dbConfig).
+        EnableAPIKeyAuth()
+
+    // Add custom middleware that accesses API key info
+    builder.WithMiddleware(func(c *fiber.Ctx) error {
+        // Access API key information if authenticated
+        if apiKey, ok := c.Locals("api_key").(*models.APIKey); ok {
+            // Log API key usage
+            fmt.Printf("Request from API key: %s\n", apiKey.Name)
+        }
+        return c.Next()
     })
-})
+
+    proxy := config.NewProxyWithBuilder(builder)
+    
+    // You can also add custom routes to the proxy's app after creation
+    // Note: This is advanced usage - most users won't need this
+    
+    if err := proxy.Run(); err != nil {
+        panic(err)
+    }
+}
+```
+
+### Accessing API Key Information in Context
+
+When a request is authenticated with an API key, the following information is available in the Fiber context:
+
+```go
+// Get API key object
+apiKey := c.Locals("api_key").(*models.APIKey)
+
+// Get API key ID
+keyID := c.Locals("api_key_id").(uint)
+
+// Get scopes
+scopes := c.Locals("api_key_scopes").([]string)
+
+// Get rate limit
+rateLimit := c.Locals("api_key_rate_limit").(int)
 ```
 
 ## Best Practices

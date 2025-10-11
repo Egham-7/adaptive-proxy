@@ -149,6 +149,8 @@ func (h *APIKeyHandler) RegisterRoutes(app *fiber.App, prefix string) {
 	apiKeys.Post("/:id/revoke", h.RevokeAPIKey)
 	apiKeys.Delete("/:id", h.DeleteAPIKey)
 
+	apiKeys.Post("/verify", h.VerifyAPIKey)
+
 	apiKeys.Get("/:id/usage", h.GetUsage)
 	apiKeys.Get("/:id/stats", h.GetStats)
 	apiKeys.Post("/:id/reset-budget", h.ResetBudget)
@@ -241,5 +243,40 @@ func (h *APIKeyHandler) ResetBudget(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message": "Budget reset successfully",
+	})
+}
+
+func (h *APIKeyHandler) VerifyAPIKey(c *fiber.Ctx) error {
+	var req struct {
+		Key string `json:"key"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	if req.Key == "" {
+		return c.JSON(fiber.Map{
+			"valid":  false,
+			"reason": "API key is required",
+		})
+	}
+
+	apiKey, err := h.service.ValidateAPIKey(c.Context(), req.Key)
+	if err != nil {
+		return c.JSON(fiber.Map{
+			"valid":  false,
+			"reason": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"valid":        true,
+		"api_key_id":   apiKey.ID,
+		"metadata":     apiKey.Metadata,
+		"expires_at":   apiKey.ExpiresAt,
+		"is_active":    apiKey.IsActive,
+		"last_used_at": apiKey.LastUsedAt,
 	})
 }
