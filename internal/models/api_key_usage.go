@@ -15,10 +15,10 @@ type APIKeyUsage struct {
 	Currency     string    `gorm:"size:3;default:'USD'" json:"currency"`
 	StatusCode   int       `json:"status_code"`
 	LatencyMs    int       `json:"latency_ms"`
-	RequestID    string    `gorm:"size:100;index" json:"request_id,omitempty"`
-	UserAgent    string    `gorm:"size:255" json:"user_agent,omitempty"`
-	IPAddress    string    `gorm:"size:45" json:"ip_address,omitempty"`
-	ErrorMessage string    `gorm:"type:text" json:"error_message,omitempty"`
+	RequestID    string    `gorm:"size:100;index" json:"request_id,omitzero"`
+	UserAgent    string    `gorm:"size:255" json:"user_agent,omitzero"`
+	IPAddress    string    `gorm:"size:45" json:"ip_address,omitzero"`
+	ErrorMessage string    `gorm:"type:text" json:"error_message,omitzero"`
 	CreatedAt    time.Time `gorm:"autoCreateTime;index" json:"created_at"`
 }
 

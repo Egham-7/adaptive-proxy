@@ -107,7 +107,7 @@ const (
 	BudgetResetMonthly = "monthly"
 )
 
-func CalculateBudgetRemaining(budgetLimit float64, budgetUsed float64) float64 {
+func CalculateBudgetRemaining(budgetLimit, budgetUsed float64) float64 {
 	if budgetLimit == 0 {
 		return 0
 	}
