@@ -638,6 +638,10 @@ func welcomeHandler() fiber.Handler {
 }
 
 func runDatabaseMigrations(db *database.DB) error {
+	if db.DriverName() == "clickhouse" {
+		return nil
+	}
+
 	apiKeySvc := usage.NewAPIKeyService(db.DB)
 	if err := apiKeySvc.AutoMigrate(); err != nil {
 		return fmt.Errorf("failed to migrate api_keys table: %w", err)
