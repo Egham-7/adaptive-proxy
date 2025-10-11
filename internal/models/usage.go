@@ -127,7 +127,7 @@ const (
 )
 
 type OrganizationCredit struct {
-	ID             string    `gorm:"primaryKey;type:varchar(30)" json:"id"`
+	ID             uint      `gorm:"primaryKey" json:"id"`
 	OrganizationID string    `gorm:"uniqueIndex;not null;type:varchar(30)" json:"organization_id"`
 	Balance        float64   `gorm:"type:decimal(12,6);default:0" json:"balance"`
 	TotalPurchased float64   `gorm:"type:decimal(12,6);default:0" json:"total_purchased"`
@@ -137,7 +137,7 @@ type OrganizationCredit struct {
 }
 
 type CreditTransaction struct {
-	ID                    string                `gorm:"primaryKey;type:varchar(30)" json:"id"`
+	ID                    uint                  `gorm:"primaryKey" json:"id"`
 	OrganizationID        string                `gorm:"not null;index;type:varchar(30)" json:"organization_id"`
 	UserID                string                `gorm:"not null;index;type:varchar(100)" json:"user_id"`
 	Type                  CreditTransactionType `gorm:"not null;index;type:varchar(20)" json:"type"`
@@ -147,13 +147,13 @@ type CreditTransaction struct {
 	Metadata              Metadata              `gorm:"type:jsonb" json:"metadata"`
 	StripePaymentIntentID string                `gorm:"index;type:varchar(100)" json:"stripe_payment_intent_id,omitempty"`
 	StripeSessionID       string                `gorm:"type:varchar(100)" json:"stripe_session_id,omitempty"`
-	APIKeyID              string                `gorm:"index;type:varchar(30)" json:"api_key_id,omitempty"`
+	APIKeyID              uint                  `gorm:"index" json:"api_key_id,omitempty"`
 	APIUsageID            uint                  `gorm:"index" json:"api_usage_id,omitempty"`
 	CreatedAt             time.Time             `gorm:"autoCreateTime;index" json:"created_at"`
 }
 
 type CreditPackage struct {
-	ID            string    `gorm:"primaryKey;type:varchar(30)" json:"id"`
+	ID            uint      `gorm:"primaryKey" json:"id"`
 	Name          string    `gorm:"not null;type:varchar(100)" json:"name"`
 	Description   string    `gorm:"type:text" json:"description,omitempty"`
 	CreditAmount  float64   `gorm:"type:decimal(12,6);not null" json:"credit_amount"`
@@ -197,7 +197,7 @@ type DeductCreditsParams struct {
 	Amount         float64
 	Description    string
 	Metadata       Metadata
-	APIKeyID       string
+	APIKeyID       uint
 	APIUsageID     uint
 }
 

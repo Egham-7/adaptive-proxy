@@ -103,7 +103,7 @@ type GetTransactionHistoryResponse struct {
 
 // TransactionItem represents a single transaction
 type TransactionItem struct {
-	ID             string         `json:"id"`
+	ID             uint           `json:"id"`
 	OrganizationID string         `json:"organization_id"`
 	UserID         string         `json:"user_id"`
 	Type           string         `json:"type"`

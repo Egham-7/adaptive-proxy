@@ -64,7 +64,7 @@ func (s *Service) RecordUsage(ctx context.Context, params models.RecordUsagePara
 				"model":    params.Model,
 				"endpoint": params.Endpoint,
 			},
-			APIKeyID:   fmt.Sprint(params.APIKeyID),
+			APIKeyID:   params.APIKeyID,
 			APIUsageID: usage.ID,
 		})
 		if err != nil {

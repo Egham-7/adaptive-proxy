@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/Egham-7/adaptive-proxy/internal/models"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -37,9 +36,7 @@ func (s *CreditsService) GetOrganizationCredit(ctx context.Context, organization
 		First(&credit).Error
 
 	if err == gorm.ErrRecordNotFound {
-		// Create new credit record
 		credit = models.OrganizationCredit{
-			ID:             generateCUID(),
 			OrganizationID: organizationID,
 			Balance:        0,
 			TotalPurchased: 0,
@@ -104,11 +101,10 @@ func (s *CreditsService) DeductCredits(ctx context.Context, params models.Deduct
 
 		// Create transaction record
 		transaction = models.CreditTransaction{
-			ID:             generateCUID(),
 			OrganizationID: params.OrganizationID,
 			UserID:         params.UserID,
 			Type:           models.CreditTransactionUsage,
-			Amount:         -params.Amount, // Negative for deduction
+			Amount:         -params.Amount,
 			BalanceAfter:   newBalance,
 			Description:    params.Description,
 			Metadata:       params.Metadata,
@@ -142,7 +138,6 @@ func (s *CreditsService) AddCredits(ctx context.Context, params models.AddCredit
 			// Create if doesn't exist
 			if err == gorm.ErrRecordNotFound {
 				credit = models.OrganizationCredit{
-					ID:             generateCUID(),
 					OrganizationID: params.OrganizationID,
 					Balance:        0,
 					TotalPurchased: 0,
@@ -173,11 +168,10 @@ func (s *CreditsService) AddCredits(ctx context.Context, params models.AddCredit
 
 		// Create transaction record
 		transaction = models.CreditTransaction{
-			ID:                    generateCUID(),
 			OrganizationID:        params.OrganizationID,
 			UserID:                params.UserID,
 			Type:                  params.Type,
-			Amount:                params.Amount, // Positive for addition
+			Amount:                params.Amount,
 			BalanceAfter:          newBalance,
 			Description:           params.Description,
 			Metadata:              params.Metadata,
@@ -218,20 +212,4 @@ func (s *CreditsService) GetTransactionHistory(ctx context.Context, organization
 	}
 
 	return transactions, nil
-}
-
-// GetCreditPackages retrieves all available credit packages
-func (s *CreditsService) GetCreditPackages(ctx context.Context) ([]models.CreditPackage, error) {
-	var packages []models.CreditPackage
-
-	if err := s.db.WithContext(ctx).Find(&packages).Error; err != nil {
-		return nil, fmt.Errorf("failed to get credit packages: %w", err)
-	}
-
-	return packages, nil
-}
-
-// Helper function to generate CUID-like IDs
-func generateCUID() string {
-	return uuid.New().String()
 }
