@@ -12,20 +12,20 @@ type APIKey struct {
 	ID              uint      `gorm:"primaryKey" json:"id"`
 	Name            string    `gorm:"not null;size:255" json:"name"`
 	KeyHash         string    `gorm:"uniqueIndex;not null;size:64" json:"-"`
-	KeyPrefix       string    `gorm:"index;size:12" json:"key_prefix"`
-	Metadata        string    `gorm:"type:text" json:"metadata,omitzero"`
-	Scopes          string    `gorm:"type:text" json:"scopes,omitzero"`
-	RateLimitRpm    int       `gorm:"default:0" json:"rate_limit_rpm,omitzero"`
-	BudgetLimit     float64   `gorm:"type:decimal(10,2);default:0" json:"budget_limit,omitzero"`
-	BudgetUsed      float64   `gorm:"type:decimal(10,2);default:0" json:"budget_used"`
-	BudgetCurrency  string    `gorm:"size:3;default:'USD'" json:"budget_currency"`
-	BudgetResetType string    `gorm:"size:20" json:"budget_reset_type,omitzero"`
-	BudgetResetAt   time.Time `json:"budget_reset_at,omitzero"`
-	IsActive        bool      `gorm:"default:true;index" json:"is_active"`
-	ExpiresAt       time.Time `gorm:"index" json:"expires_at,omitzero"`
-	LastUsedAt      time.Time `json:"last_used_at,omitzero"`
-	CreatedAt       time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt       time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+	KeyPrefix       string    `gorm:"not null;index;size:12" json:"key_prefix"`
+	Metadata        string    `gorm:"not null;type:text;default:''" json:"metadata,omitzero"`
+	Scopes          string    `gorm:"not null;type:text;default:''" json:"scopes,omitzero"`
+	RateLimitRpm    int       `gorm:"not null;default:0" json:"rate_limit_rpm,omitzero"`
+	BudgetLimit     float64   `gorm:"not null;type:decimal(10,2);default:0" json:"budget_limit,omitzero"`
+	BudgetUsed      float64   `gorm:"not null;type:decimal(10,2);default:0" json:"budget_used"`
+	BudgetCurrency  string    `gorm:"not null;size:3;default:'USD'" json:"budget_currency"`
+	BudgetResetType string    `gorm:"not null;size:20;default:''" json:"budget_reset_type,omitzero"`
+	BudgetResetAt   time.Time `gorm:"not null" json:"budget_reset_at,omitzero"`
+	IsActive        bool      `gorm:"not null;default:true;index" json:"is_active"`
+	ExpiresAt       time.Time `gorm:"not null" json:"expires_at,omitzero"`
+	LastUsedAt      time.Time `gorm:"not null" json:"last_used_at,omitzero"`
+	CreatedAt       time.Time `gorm:"not null;autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time `gorm:"not null;autoUpdateTime" json:"updated_at"`
 }
 
 func (APIKey) TableName() string {
