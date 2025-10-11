@@ -54,11 +54,11 @@ func (s *Service) CheckBudgetLimit(ctx context.Context, apiKeyID uint) (bool, *m
 		return false, nil, fmt.Errorf("failed to get API key: %w", err)
 	}
 
-	if apiKey.BudgetLimit == nil {
+	if apiKey.BudgetLimit == 0 {
 		return true, &apiKey, nil
 	}
 
-	if apiKey.BudgetUsed >= *apiKey.BudgetLimit {
+	if apiKey.BudgetUsed >= apiKey.BudgetLimit {
 		return false, &apiKey, nil
 	}
 
@@ -111,21 +111,17 @@ func (s *Service) ProcessScheduledBudgetResets(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) calculateNextReset(from time.Time, resetType string) *time.Time {
-	var next time.Time
-
+func (s *Service) calculateNextReset(from time.Time, resetType string) time.Time {
 	switch resetType {
 	case models.BudgetResetDaily:
-		next = from.AddDate(0, 0, 1)
+		return from.AddDate(0, 0, 1)
 	case models.BudgetResetWeekly:
-		next = from.AddDate(0, 0, 7)
+		return from.AddDate(0, 0, 7)
 	case models.BudgetResetMonthly:
-		next = from.AddDate(0, 1, 0)
+		return from.AddDate(0, 1, 0)
 	default:
-		return nil
+		return time.Time{}
 	}
-
-	return &next
 }
 
 func (s *Service) GetUsageStats(ctx context.Context, apiKeyID uint, startTime, endTime time.Time) (*models.UsageStats, error) {

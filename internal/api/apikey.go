@@ -311,7 +311,7 @@ func (h *APIKeyHandler) MigrateFromPrisma(c *fiber.Ctx) error {
 		})
 	}
 
-	var expiresAt *time.Time
+	var expiresAtTime time.Time
 	if req.ExpiresAt != nil {
 		t, err := time.Parse(time.RFC3339, *req.ExpiresAt)
 		if err != nil {
@@ -319,10 +319,10 @@ func (h *APIKeyHandler) MigrateFromPrisma(c *fiber.Ctx) error {
 				"error": "Invalid expiresAt format",
 			})
 		}
-		expiresAt = &t
+		expiresAtTime = t
 	}
 
-	var lastUsedAt *time.Time
+	var lastUsedAtTime time.Time
 	if req.LastUsedAt != nil {
 		t, err := time.Parse(time.RFC3339, *req.LastUsedAt)
 		if err != nil {
@@ -330,7 +330,7 @@ func (h *APIKeyHandler) MigrateFromPrisma(c *fiber.Ctx) error {
 				"error": "Invalid lastUsedAt format",
 			})
 		}
-		lastUsedAt = &t
+		lastUsedAtTime = t
 	}
 
 	createdAt, err := time.Parse(time.RFC3339, req.CreatedAt)
@@ -371,8 +371,8 @@ func (h *APIKeyHandler) MigrateFromPrisma(c *fiber.Ctx) error {
 		KeyPrefix:  req.KeyPrefix,
 		Metadata:   string(metadataJSON),
 		IsActive:   req.Status == "active",
-		ExpiresAt:  expiresAt,
-		LastUsedAt: lastUsedAt,
+		ExpiresAt:  expiresAtTime,
+		LastUsedAt: lastUsedAtTime,
 		CreatedAt:  createdAt,
 		UpdatedAt:  updatedAt,
 	}

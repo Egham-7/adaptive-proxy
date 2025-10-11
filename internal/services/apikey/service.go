@@ -93,7 +93,7 @@ func (s *Service) ValidateAPIKey(ctx context.Context, key string) (*models.APIKe
 		return nil, fmt.Errorf("failed to validate API key: %w", err)
 	}
 
-	if apiKey.ExpiresAt != nil && apiKey.ExpiresAt.Before(time.Now()) {
+	if !apiKey.ExpiresAt.IsZero() && apiKey.ExpiresAt.Before(time.Now()) {
 		return nil, fmt.Errorf("API key has expired")
 	}
 
@@ -199,21 +199,17 @@ func (s *Service) DeleteAPIKey(ctx context.Context, id uint) error {
 	return nil
 }
 
-func calculateNextReset(from time.Time, resetType string) *time.Time {
-	var next time.Time
-
+func calculateNextReset(from time.Time, resetType string) time.Time {
 	switch resetType {
 	case models.BudgetResetDaily:
-		next = from.AddDate(0, 0, 1)
+		return from.AddDate(0, 0, 1)
 	case models.BudgetResetWeekly:
-		next = from.AddDate(0, 0, 7)
+		return from.AddDate(0, 0, 7)
 	case models.BudgetResetMonthly:
-		next = from.AddDate(0, 1, 0)
+		return from.AddDate(0, 1, 0)
 	default:
-		return nil
+		return time.Time{}
 	}
-
-	return &next
 }
 
 func (s *Service) UpdateAPIKey(ctx context.Context, id uint, updates map[string]any) error {

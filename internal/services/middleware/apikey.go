@@ -80,8 +80,8 @@ func (m *APIKeyMiddleware) Authenticate() fiber.Handler {
 			c.Locals("api_key_scopes", strings.Split(apiKey.Scopes, ","))
 		}
 
-		if apiKey.RateLimitRpm != nil {
-			c.Locals("api_key_rate_limit", *apiKey.RateLimitRpm)
+		if apiKey.RateLimitRpm != 0 {
+			c.Locals("api_key_rate_limit", apiKey.RateLimitRpm)
 		}
 
 		return c.Next()
@@ -129,8 +129,8 @@ func (m *APIKeyMiddleware) RequireAPIKey() fiber.Handler {
 			c.Locals("api_key_scopes", strings.Split(apiKey.Scopes, ","))
 		}
 
-		if apiKey.RateLimitRpm != nil {
-			c.Locals("api_key_rate_limit", *apiKey.RateLimitRpm)
+		if apiKey.RateLimitRpm != 0 {
+			c.Locals("api_key_rate_limit", apiKey.RateLimitRpm)
 		}
 
 		return c.Next()

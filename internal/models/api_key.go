@@ -9,23 +9,23 @@ import (
 )
 
 type APIKey struct {
-	ID              uint       `gorm:"primaryKey" json:"id"`
-	Name            string     `gorm:"not null;size:255" json:"name"`
-	KeyHash         string     `gorm:"uniqueIndex;not null;size:64" json:"-"`
-	KeyPrefix       string     `gorm:"index;size:12" json:"key_prefix"`
-	Metadata        string     `gorm:"type:text" json:"metadata,omitempty"`
-	Scopes          string     `gorm:"type:text" json:"scopes,omitempty"`
-	RateLimitRpm    *int       `json:"rate_limit_rpm,omitempty"`
-	BudgetLimit     *float64   `gorm:"type:decimal(10,2)" json:"budget_limit,omitempty"`
-	BudgetUsed      float64    `gorm:"type:decimal(10,2);default:0" json:"budget_used"`
-	BudgetCurrency  string     `gorm:"size:3;default:'USD'" json:"budget_currency"`
-	BudgetResetType string     `gorm:"size:20" json:"budget_reset_type,omitempty"`
-	BudgetResetAt   *time.Time `json:"budget_reset_at,omitempty"`
-	IsActive        bool       `gorm:"default:true;index" json:"is_active"`
-	ExpiresAt       *time.Time `gorm:"index" json:"expires_at,omitempty"`
-	LastUsedAt      *time.Time `json:"last_used_at,omitempty"`
-	CreatedAt       time.Time  `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt       time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+	ID              uint      `gorm:"primaryKey" json:"id"`
+	Name            string    `gorm:"not null;size:255" json:"name"`
+	KeyHash         string    `gorm:"uniqueIndex;not null;size:64" json:"-"`
+	KeyPrefix       string    `gorm:"index;size:12" json:"key_prefix"`
+	Metadata        string    `gorm:"type:text" json:"metadata,omitzero"`
+	Scopes          string    `gorm:"type:text" json:"scopes,omitzero"`
+	RateLimitRpm    int       `gorm:"default:0" json:"rate_limit_rpm,omitzero"`
+	BudgetLimit     float64   `gorm:"type:decimal(10,2);default:0" json:"budget_limit,omitzero"`
+	BudgetUsed      float64   `gorm:"type:decimal(10,2);default:0" json:"budget_used"`
+	BudgetCurrency  string    `gorm:"size:3;default:'USD'" json:"budget_currency"`
+	BudgetResetType string    `gorm:"size:20" json:"budget_reset_type,omitzero"`
+	BudgetResetAt   time.Time `json:"budget_reset_at,omitzero"`
+	IsActive        bool      `gorm:"default:true;index" json:"is_active"`
+	ExpiresAt       time.Time `gorm:"index" json:"expires_at,omitzero"`
+	LastUsedAt      time.Time `json:"last_used_at,omitzero"`
+	CreatedAt       time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 func (APIKey) TableName() string {
@@ -34,9 +34,9 @@ func (APIKey) TableName() string {
 
 type APIKeyConfig struct {
 	Enabled        bool     `yaml:"enabled" json:"enabled"`
-	HeaderNames    []string `yaml:"header_names,omitempty" json:"header_names,omitempty"`
-	RequireForAll  bool     `yaml:"require_for_all,omitempty" json:"require_for_all,omitempty"`
-	AllowAnonymous bool     `yaml:"allow_anonymous,omitempty" json:"allow_anonymous,omitempty"`
+	HeaderNames    []string `yaml:"header_names,omitzero" json:"header_names,omitzero"`
+	RequireForAll  bool     `yaml:"require_for_all,omitzero" json:"require_for_all,omitzero"`
+	AllowAnonymous bool     `yaml:"allow_anonymous,omitzero" json:"allow_anonymous,omitzero"`
 }
 
 func DefaultAPIKeyConfig() APIKeyConfig {
@@ -49,35 +49,35 @@ func DefaultAPIKeyConfig() APIKeyConfig {
 }
 
 type APIKeyCreateRequest struct {
-	Name            string     `json:"name" validate:"required,min=1,max=255"`
-	Metadata        string     `json:"metadata,omitempty"`
-	Scopes          []string   `json:"scopes,omitempty"`
-	RateLimitRpm    *int       `json:"rate_limit_rpm,omitempty"`
-	BudgetLimit     *float64   `json:"budget_limit,omitempty"`
-	BudgetCurrency  string     `json:"budget_currency,omitempty"`
-	BudgetResetType string     `json:"budget_reset_type,omitempty"`
-	ExpiresAt       *time.Time `json:"expires_at,omitempty"`
+	Name            string    `json:"name" validate:"required,min=1,max=255"`
+	Metadata        string    `json:"metadata,omitzero"`
+	Scopes          []string  `json:"scopes,omitzero"`
+	RateLimitRpm    int       `json:"rate_limit_rpm,omitzero"`
+	BudgetLimit     float64   `json:"budget_limit,omitzero"`
+	BudgetCurrency  string    `json:"budget_currency,omitzero"`
+	BudgetResetType string    `json:"budget_reset_type,omitzero"`
+	ExpiresAt       time.Time `json:"expires_at,omitzero"`
 }
 
 type APIKeyResponse struct {
-	ID              uint       `json:"id"`
-	Name            string     `json:"name"`
-	Key             string     `json:"key,omitempty"`
-	KeyPrefix       string     `json:"key_prefix"`
-	Metadata        string     `json:"metadata,omitempty"`
-	Scopes          string     `json:"scopes,omitempty"`
-	RateLimitRpm    *int       `json:"rate_limit_rpm,omitempty"`
-	BudgetLimit     *float64   `json:"budget_limit,omitempty"`
-	BudgetUsed      float64    `json:"budget_used"`
-	BudgetRemaining *float64   `json:"budget_remaining,omitempty"`
-	BudgetCurrency  string     `json:"budget_currency,omitempty"`
-	BudgetResetType string     `json:"budget_reset_type,omitempty"`
-	BudgetResetAt   *time.Time `json:"budget_reset_at,omitempty"`
-	IsActive        bool       `json:"is_active"`
-	ExpiresAt       *time.Time `json:"expires_at,omitempty"`
-	LastUsedAt      *time.Time `json:"last_used_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID              uint      `json:"id"`
+	Name            string    `json:"name"`
+	Key             string    `json:"key,omitzero"`
+	KeyPrefix       string    `json:"key_prefix"`
+	Metadata        string    `json:"metadata,omitzero"`
+	Scopes          string    `json:"scopes,omitzero"`
+	RateLimitRpm    int       `json:"rate_limit_rpm,omitzero"`
+	BudgetLimit     float64   `json:"budget_limit,omitzero"`
+	BudgetUsed      float64   `json:"budget_used"`
+	BudgetRemaining float64   `json:"budget_remaining,omitzero"`
+	BudgetCurrency  string    `json:"budget_currency,omitzero"`
+	BudgetResetType string    `json:"budget_reset_type,omitzero"`
+	BudgetResetAt   time.Time `json:"budget_reset_at,omitzero"`
+	IsActive        bool      `json:"is_active"`
+	ExpiresAt       time.Time `json:"expires_at,omitzero"`
+	LastUsedAt      time.Time `json:"last_used_at,omitzero"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 func GenerateAPIKey() (string, error) {
@@ -107,10 +107,10 @@ const (
 	BudgetResetMonthly = "monthly"
 )
 
-func CalculateBudgetRemaining(budgetLimit *float64, budgetUsed float64) *float64 {
-	if budgetLimit == nil {
-		return nil
+func CalculateBudgetRemaining(budgetLimit float64, budgetUsed float64) float64 {
+	if budgetLimit == 0 {
+		return 0
 	}
-	remaining := *budgetLimit - budgetUsed
-	return &remaining
+	remaining := budgetLimit - budgetUsed
+	return remaining
 }
