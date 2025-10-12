@@ -65,6 +65,9 @@ func (p *OpenAIChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 
 	// Check if this chunk contains usage data (final chunk) and record it
 	if adaptiveChunk.Usage.TotalTokens > 0 && p.usageService != nil && p.apiKey != nil {
+		inputTokens := int(adaptiveChunk.Usage.PromptTokens)
+		outputTokens := int(adaptiveChunk.Usage.CompletionTokens)
+
 		usageParams := models.RecordUsageParams{
 			APIKeyID:       p.apiKey.ID,
 			OrganizationID: p.apiKey.OrganizationID,
@@ -72,8 +75,9 @@ func (p *OpenAIChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 			Endpoint:       p.endpoint,
 			Provider:       p.provider,
 			Model:          p.model,
-			TokensInput:    int(adaptiveChunk.Usage.PromptTokens),
-			TokensOutput:   int(adaptiveChunk.Usage.CompletionTokens),
+			TokensInput:    inputTokens,
+			TokensOutput:   outputTokens,
+			Cost:           usage.CalculateCost(p.provider, p.model, inputTokens, outputTokens),
 			StatusCode:     200,
 			RequestID:      p.requestID,
 		}

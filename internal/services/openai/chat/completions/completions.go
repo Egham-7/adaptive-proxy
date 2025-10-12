@@ -364,6 +364,9 @@ func (cs *CompletionService) handleNonStreamingCompletion(
 	if cs.usageService != nil {
 		apiKeyInterface := c.Locals("api_key")
 		if apiKey, ok := apiKeyInterface.(*models.APIKey); ok && apiKey != nil {
+			inputTokens := int(resp.Usage.PromptTokens)
+			outputTokens := int(resp.Usage.CompletionTokens)
+
 			usageParams := models.RecordUsageParams{
 				APIKeyID:       apiKey.ID,
 				OrganizationID: apiKey.OrganizationID,
@@ -371,8 +374,9 @@ func (cs *CompletionService) handleNonStreamingCompletion(
 				Endpoint:       "/v1/chat/completions",
 				Provider:       providerName,
 				Model:          string(resp.Model),
-				TokensInput:    int(resp.Usage.PromptTokens),
-				TokensOutput:   int(resp.Usage.CompletionTokens),
+				TokensInput:    inputTokens,
+				TokensOutput:   outputTokens,
+				Cost:           usage.CalculateCost(providerName, string(resp.Model), inputTokens, outputTokens),
 				StatusCode:     200,
 				RequestID:      requestID,
 			}

@@ -70,6 +70,9 @@ func (p *AnthropicChunkProcessor) Process(ctx context.Context, data []byte) ([]b
 
 	// Check if this is a message_delta event with usage data and record it
 	if adaptiveChunk.Type == "message_delta" && adaptiveChunk.Usage != nil && p.usageService != nil && p.apiKey != nil {
+		inputTokens := int(adaptiveChunk.Usage.InputTokens)
+		outputTokens := int(adaptiveChunk.Usage.OutputTokens)
+
 		usageParams := models.RecordUsageParams{
 			APIKeyID:       p.apiKey.ID,
 			OrganizationID: p.apiKey.OrganizationID,
@@ -77,8 +80,9 @@ func (p *AnthropicChunkProcessor) Process(ctx context.Context, data []byte) ([]b
 			Endpoint:       p.endpoint,
 			Provider:       p.provider,
 			Model:          p.model,
-			TokensInput:    int(adaptiveChunk.Usage.InputTokens),
-			TokensOutput:   int(adaptiveChunk.Usage.OutputTokens),
+			TokensInput:    inputTokens,
+			TokensOutput:   outputTokens,
+			Cost:           usage.CalculateCost(p.provider, p.model, inputTokens, outputTokens),
 			StatusCode:     200,
 			RequestID:      p.requestID,
 		}

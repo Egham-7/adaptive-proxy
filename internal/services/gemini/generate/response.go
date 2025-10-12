@@ -57,6 +57,9 @@ func (rs *ResponseService) HandleNonStreamingResponse(
 	if rs.usageService != nil && adaptiveResp.UsageMetadata != nil {
 		apiKeyInterface := c.Locals("api_key")
 		if apiKey, ok := apiKeyInterface.(*models.APIKey); ok && apiKey != nil {
+			inputTokens := int(adaptiveResp.UsageMetadata.PromptTokenCount)
+			outputTokens := int(adaptiveResp.UsageMetadata.CandidatesTokenCount)
+
 			usageParams := models.RecordUsageParams{
 				APIKeyID:       apiKey.ID,
 				OrganizationID: apiKey.OrganizationID,
@@ -64,8 +67,9 @@ func (rs *ResponseService) HandleNonStreamingResponse(
 				Endpoint:       "/v1beta/models/:model:generateContent",
 				Provider:       provider,
 				Model:          model,
-				TokensInput:    int(adaptiveResp.UsageMetadata.PromptTokenCount),
-				TokensOutput:   int(adaptiveResp.UsageMetadata.CandidatesTokenCount),
+				TokensInput:    inputTokens,
+				TokensOutput:   outputTokens,
+				Cost:           usage.CalculateCost(provider, model, inputTokens, outputTokens),
 				StatusCode:     200,
 				RequestID:      requestID,
 			}

@@ -66,6 +66,9 @@ func (p *GeminiChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 	}
 
 	if adaptiveResponse.UsageMetadata != nil && p.usageService != nil && p.apiKey != nil {
+		inputTokens := int(adaptiveResponse.UsageMetadata.PromptTokenCount)
+		outputTokens := int(adaptiveResponse.UsageMetadata.CandidatesTokenCount)
+
 		usageParams := models.RecordUsageParams{
 			APIKeyID:       p.apiKey.ID,
 			OrganizationID: p.apiKey.OrganizationID,
@@ -73,8 +76,9 @@ func (p *GeminiChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 			Endpoint:       p.endpoint,
 			Provider:       p.provider,
 			Model:          p.model,
-			TokensInput:    int(adaptiveResponse.UsageMetadata.PromptTokenCount),
-			TokensOutput:   int(adaptiveResponse.UsageMetadata.CandidatesTokenCount),
+			TokensInput:    inputTokens,
+			TokensOutput:   outputTokens,
+			Cost:           usage.CalculateCost(p.provider, p.model, inputTokens, outputTokens),
 			StatusCode:     200,
 			RequestID:      p.requestID,
 		}
