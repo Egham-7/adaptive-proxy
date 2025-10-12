@@ -62,6 +62,21 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, req *models.APIKeyCrea
 
 	scopes := strings.Join(req.Scopes, ",")
 
+	rateLimitRpm := 0
+	if req.RateLimitRpm != nil {
+		rateLimitRpm = *req.RateLimitRpm
+	}
+
+	budgetLimit := 0.0
+	if req.BudgetLimit != nil {
+		budgetLimit = *req.BudgetLimit
+	}
+
+	var expiresAt time.Time
+	if req.ExpiresAt != nil {
+		expiresAt = *req.ExpiresAt
+	}
+
 	apiKey := &models.APIKey{
 		Name:            req.Name,
 		KeyHash:         HashAPIKey(key),
@@ -71,13 +86,13 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, req *models.APIKeyCrea
 		ProjectID:       req.ProjectID,
 		Metadata:        req.Metadata,
 		Scopes:          scopes,
-		RateLimitRpm:    req.RateLimitRpm,
-		BudgetLimit:     req.BudgetLimit,
+		RateLimitRpm:    rateLimitRpm,
+		BudgetLimit:     budgetLimit,
 		BudgetUsed:      0,
 		BudgetCurrency:  budgetCurrency,
 		BudgetResetType: req.BudgetResetType,
 		IsActive:        true,
-		ExpiresAt:       req.ExpiresAt,
+		ExpiresAt:       expiresAt,
 	}
 
 	if req.BudgetResetType != "" && req.BudgetResetType != models.BudgetResetNone {

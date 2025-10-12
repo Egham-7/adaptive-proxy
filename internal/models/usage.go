@@ -35,17 +35,17 @@ type APIKeyConfig struct {
 }
 
 type APIKeyCreateRequest struct {
-	Name            string    `json:"name" validate:"required,min=1,max=255"`
-	OrganizationID  string    `json:"organization_id,omitzero"`
-	UserID          string    `json:"user_id,omitzero"`
-	ProjectID       string    `json:"project_id,omitzero"`
-	Metadata        string    `json:"metadata,omitzero"`
-	Scopes          []string  `json:"scopes,omitzero"`
-	RateLimitRpm    int       `json:"rate_limit_rpm,omitzero"`
-	BudgetLimit     float64   `json:"budget_limit,omitzero"`
-	BudgetCurrency  string    `json:"budget_currency,omitzero"`
-	BudgetResetType string    `json:"budget_reset_type,omitzero"`
-	ExpiresAt       time.Time `json:"expires_at,omitzero"`
+	Name            string     `json:"name" validate:"required,min=1,max=255"`
+	OrganizationID  string     `json:"organization_id,omitzero"`
+	UserID          string     `json:"user_id,omitzero"`
+	ProjectID       string     `json:"project_id,omitzero"`
+	Metadata        string     `json:"metadata,omitzero"`
+	Scopes          []string   `json:"scopes,omitzero"`
+	RateLimitRpm    *int       `json:"rate_limit_rpm,omitzero"`
+	BudgetLimit     *float64   `json:"budget_limit,omitzero"`
+	BudgetCurrency  string     `json:"budget_currency,omitzero"`
+	BudgetResetType string     `json:"budget_reset_type,omitzero"`
+	ExpiresAt       *time.Time `json:"expires_at,omitzero"`
 }
 
 type APIKeyResponse struct {
