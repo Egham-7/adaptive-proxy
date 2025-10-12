@@ -1,13 +1,7 @@
 package models
 
 import (
-	"database/sql/driver"
-	"encoding/json"
-	"fmt"
 	"time"
-
-	"gorm.io/gorm"
-	"gorm.io/gorm/schema"
 )
 
 type APIKey struct {
@@ -85,52 +79,6 @@ const (
 	BudgetResetMonthly = "monthly"
 )
 
-type Metadata map[string]any
-
-func (m Metadata) Value() (driver.Value, error) {
-	if m == nil {
-		return "{}", nil
-	}
-	b, err := json.Marshal(m)
-	return string(b), err
-}
-
-func (m *Metadata) Scan(value any) error {
-	if value == nil {
-		*m = make(Metadata)
-		return nil
-	}
-	var bytes []byte
-	switch v := value.(type) {
-	case []byte:
-		bytes = v
-	case string:
-		bytes = []byte(v)
-	default:
-		return fmt.Errorf("unsupported type for Metadata: %T", value)
-	}
-	return json.Unmarshal(bytes, m)
-}
-
-func (Metadata) GormDataType() string {
-	return "json"
-}
-
-func (Metadata) GormDBDataType(db *gorm.DB, field *schema.Field) string {
-	switch db.Dialector.Name() {
-	case "postgres":
-		return "JSONB"
-	case "mysql":
-		return "JSON"
-	case "sqlite":
-		return "TEXT"
-	case "clickhouse":
-		return "String"
-	default:
-		return "TEXT"
-	}
-}
-
 type APIKeyUsage struct {
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	APIKeyID     uint      `gorm:"not null;index" json:"api_key_id"`
@@ -144,7 +92,7 @@ type APIKeyUsage struct {
 	Currency     string    `gorm:"size:3;default:'USD'" json:"currency"`
 	StatusCode   int       `gorm:"default:0" json:"status_code"`
 	LatencyMs    int       `gorm:"default:0" json:"latency_ms"`
-	Metadata     Metadata  `json:"metadata"`
+	Metadata     string    `gorm:"type:text;default:''" json:"metadata,omitzero"`
 	RequestID    string    `gorm:"size:100;index;default:''" json:"request_id,omitzero"`
 	UserAgent    string    `gorm:"size:255;default:''" json:"user_agent,omitzero"`
 	IPAddress    string    `gorm:"size:45;default:''" json:"ip_address,omitzero"`
@@ -197,7 +145,7 @@ type CreditTransaction struct {
 	Amount                float64               `gorm:"not null" json:"amount"`
 	BalanceAfter          float64               `gorm:"not null" json:"balance_after"`
 	Description           string                `gorm:"type:text;default:''" json:"description,omitempty"`
-	Metadata              Metadata              `json:"metadata"`
+	Metadata              string                `gorm:"type:text;default:''" json:"metadata,omitzero"`
 	StripePaymentIntentID string                `gorm:"index;size:100;default:''" json:"stripe_payment_intent_id,omitempty"`
 	StripeSessionID       string                `gorm:"size:100;default:''" json:"stripe_session_id,omitempty"`
 	APIKeyID              uint                  `gorm:"index;default:0" json:"api_key_id,omitzero"`
@@ -229,7 +177,7 @@ type RecordUsageParams struct {
 	Currency       string
 	StatusCode     int
 	LatencyMs      int
-	Metadata       Metadata
+	Metadata       string
 	RequestID      string
 	UserAgent      string
 	IPAddress      string
@@ -249,7 +197,7 @@ type DeductCreditsParams struct {
 	UserID         string
 	Amount         float64
 	Description    string
-	Metadata       Metadata
+	Metadata       string
 	APIKeyID       uint
 	APIUsageID     uint
 }
@@ -260,7 +208,7 @@ type AddCreditsParams struct {
 	Amount                float64
 	Type                  CreditTransactionType
 	Description           string
-	Metadata              Metadata
+	Metadata              string
 	StripePaymentIntentID string
 	StripeSessionID       string
 }

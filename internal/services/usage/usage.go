@@ -2,6 +2,7 @@ package usage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -54,18 +55,24 @@ func (s *Service) RecordUsage(ctx context.Context, params models.RecordUsagePara
 	}
 
 	if params.OrganizationID != "" && params.Cost > 0 {
-		_, err := s.creditsService.DeductCredits(ctx, models.DeductCreditsParams{
+		metadataMap := map[string]any{
+			"provider": params.Provider,
+			"model":    params.Model,
+			"endpoint": params.Endpoint,
+		}
+		metadataJSON, err := json.Marshal(metadataMap)
+		if err != nil {
+			return &usage, fmt.Errorf("usage recorded but failed to marshal metadata: %w", err)
+		}
+
+		_, err = s.creditsService.DeductCredits(ctx, models.DeductCreditsParams{
 			OrganizationID: params.OrganizationID,
 			UserID:         params.UserID,
 			Amount:         params.Cost,
 			Description:    fmt.Sprintf("API usage: %s - %s", params.Provider, params.Model),
-			Metadata: models.Metadata{
-				"provider": params.Provider,
-				"model":    params.Model,
-				"endpoint": params.Endpoint,
-			},
-			APIKeyID:   params.APIKeyID,
-			APIUsageID: usage.ID,
+			Metadata:       string(metadataJSON),
+			APIKeyID:       params.APIKeyID,
+			APIUsageID:     usage.ID,
 		})
 		if err != nil {
 			return &usage, fmt.Errorf("usage recorded but failed to deduct credits: %w", err)

@@ -138,10 +138,6 @@ func (h *UsageHandler) RecordUsage(c *fiber.Ctx) error {
 		})
 	}
 
-	if params.Metadata == nil {
-		params.Metadata = make(models.Metadata)
-	}
-
 	usageRecord, err := h.usageService.RecordUsage(c.Context(), params)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

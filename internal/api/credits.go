@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
@@ -146,6 +147,11 @@ func (h *CreditsHandler) GetTransactionHistory(c *fiber.Ctx) error {
 
 	items := make([]TransactionItem, len(transactions))
 	for i, tx := range transactions {
+		var metadata map[string]any
+		if tx.Metadata != "" {
+			_ = json.Unmarshal([]byte(tx.Metadata), &metadata)
+		}
+
 		items[i] = TransactionItem{
 			ID:             tx.ID,
 			OrganizationID: tx.OrganizationID,
@@ -154,7 +160,7 @@ func (h *CreditsHandler) GetTransactionHistory(c *fiber.Ctx) error {
 			Amount:         tx.Amount,
 			BalanceAfter:   tx.BalanceAfter,
 			Description:    tx.Description,
-			Metadata:       tx.Metadata,
+			Metadata:       metadata,
 			CreatedAt:      tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
 	}
