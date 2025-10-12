@@ -373,14 +373,14 @@ func (cs *CompletionService) handleNonStreamingCompletion(
 				APIKeyID:       apiKey.ID,
 				OrganizationID: apiKey.OrganizationID,
 				UserID:         apiKey.UserID,
-				Endpoint:       &endpoint,
-				Provider:       &providerName,
-				Model:          &model,
+				Endpoint:       endpoint,
+				Provider:       providerName,
+				Model:          model,
 				TokensInput:    inputTokens,
 				TokensOutput:   outputTokens,
 				Cost:           usage.CalculateCost(providerName, string(resp.Model), inputTokens, outputTokens),
 				StatusCode:     200,
-				RequestID:      &requestID,
+				RequestID:      requestID,
 			}
 
 			_, err := cs.usageService.RecordUsage(c.UserContext(), usageParams)

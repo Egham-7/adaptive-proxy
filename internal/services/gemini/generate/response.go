@@ -65,14 +65,14 @@ func (rs *ResponseService) HandleNonStreamingResponse(
 				APIKeyID:       apiKey.ID,
 				OrganizationID: apiKey.OrganizationID,
 				UserID:         apiKey.UserID,
-				Endpoint:       &endpoint,
-				Provider:       &provider,
-				Model:          &model,
+				Endpoint:       endpoint,
+				Provider:       provider,
+				Model:          model,
 				TokensInput:    inputTokens,
 				TokensOutput:   outputTokens,
 				Cost:           usage.CalculateCost(provider, model, inputTokens, outputTokens),
 				StatusCode:     200,
-				RequestID:      &requestID,
+				RequestID:      requestID,
 			}
 
 			_, err := rs.usageService.RecordUsage(c.UserContext(), usageParams)

@@ -42,7 +42,7 @@ func (h *APIKeyHandler) CreateAPIKey(c *fiber.Ctx) error {
 				"error": "user_id is required when credits are enabled",
 			})
 		}
-		if req.ProjectID == nil || *req.ProjectID == "" {
+		if req.ProjectID == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "project_id is required when credits are enabled",
 			})

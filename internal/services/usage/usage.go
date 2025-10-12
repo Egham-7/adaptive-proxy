@@ -65,28 +65,16 @@ func (s *Service) RecordUsage(ctx context.Context, params models.RecordUsagePara
 			return &usage, fmt.Errorf("usage recorded but failed to marshal metadata: %w", err)
 		}
 
-		providerStr := ""
-		if params.Provider != nil {
-			providerStr = *params.Provider
-		}
-		modelStr := ""
-		if params.Model != nil {
-			modelStr = *params.Model
-		}
-
-		description := fmt.Sprintf("API usage: %s - %s", providerStr, modelStr)
-		metadataStr := string(metadataJSON)
-		apiKeyID := params.APIKeyID
-		usageID := usage.ID
+		description := fmt.Sprintf("API usage: %s - %s", params.Provider, params.Model)
 
 		_, err = s.creditsService.DeductCredits(ctx, models.DeductCreditsParams{
 			OrganizationID: params.OrganizationID,
 			UserID:         params.UserID,
 			Amount:         params.Cost,
-			Description:    &description,
-			Metadata:       &metadataStr,
-			APIKeyID:       &apiKeyID,
-			APIUsageID:     &usageID,
+			Description:    description,
+			Metadata:       string(metadataJSON),
+			APIKeyID:       params.APIKeyID,
+			APIUsageID:     usage.ID,
 		})
 		if err != nil {
 			return &usage, fmt.Errorf("usage recorded but failed to deduct credits: %w", err)

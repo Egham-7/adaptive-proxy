@@ -148,13 +148,8 @@ func (h *CreditsHandler) GetTransactionHistory(c *fiber.Ctx) error {
 	items := make([]TransactionItem, len(transactions))
 	for i, tx := range transactions {
 		var metadata map[string]any
-		if tx.Metadata != nil && *tx.Metadata != "" {
-			_ = json.Unmarshal([]byte(*tx.Metadata), &metadata)
-		}
-
-		description := ""
-		if tx.Description != nil {
-			description = *tx.Description
+		if tx.Metadata != "" {
+			_ = json.Unmarshal([]byte(tx.Metadata), &metadata)
 		}
 
 		items[i] = TransactionItem{
@@ -164,7 +159,7 @@ func (h *CreditsHandler) GetTransactionHistory(c *fiber.Ctx) error {
 			Type:           string(tx.Type),
 			Amount:         tx.Amount,
 			BalanceAfter:   tx.BalanceAfter,
-			Description:    description,
+			Description:    tx.Description,
 			Metadata:       metadata,
 			CreatedAt:      tx.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
