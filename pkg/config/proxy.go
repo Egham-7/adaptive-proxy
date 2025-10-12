@@ -516,11 +516,20 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	// Initialize API key and usage services if database is available
 	var apiKeyMiddleware *middleware.APIKeyMiddleware
 	var creditsSvc *usage.CreditsService
+	var stripeSvc *usage.StripeService
 	if db != nil && cfg.Server.APIKeyConfig != nil && cfg.Server.APIKeyConfig.Enabled {
 		apiKeySvc := usage.NewAPIKeyService(db.DB)
 
 		if cfg.Server.APIKeyConfig.CreditsEnabled {
 			creditsSvc = usage.NewCreditsService(db.DB)
+
+			// Initialize Stripe service if configured
+			if cfg.Server.StripeConfig != nil && cfg.Server.StripeConfig.SecretKey != "" {
+				stripeSvc = usage.NewStripeService(usage.StripeConfig{
+					SecretKey:     cfg.Server.StripeConfig.SecretKey,
+					WebhookSecret: cfg.Server.StripeConfig.WebhookSecret,
+				}, creditsSvc)
+			}
 		}
 
 		usageSvc = usage.NewService(db.DB, creditsSvc)
@@ -544,6 +553,17 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 			creditsGroup.Get("/balance/:organization_id", creditsHandler.GetBalance)
 			creditsGroup.Post("/check", creditsHandler.CheckCredits)
 			creditsGroup.Get("/transactions/:organization_id", creditsHandler.GetTransactionHistory)
+
+			// Register Stripe routes if Stripe is configured
+			if stripeSvc != nil {
+				stripeHandler := api.NewStripeHandler(stripeSvc)
+				// Webhook endpoint (no auth required - Stripe signature verified)
+				app.Post("/webhooks/stripe", stripeHandler.HandleWebhook)
+
+				// Admin Stripe routes
+				stripeGroup := app.Group("/admin/stripe")
+				stripeGroup.Post("/checkout-session", stripeHandler.CreateCheckoutSession)
+			}
 		}
 	}
 
