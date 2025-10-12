@@ -109,23 +109,14 @@ func (rs *ResponseService) HandleStreamingResponse(
 func (rs *ResponseService) HandleError(c *fiber.Ctx, err error, requestID string) error {
 	fiberlog.Errorf("[%s] Handling error: %v", requestID, err)
 
-	var appErr *models.AppError
-	if e, ok := err.(*models.AppError); ok {
-		appErr = e
-	} else {
-		appErr = models.NewInternalError("internal server error", err)
-	}
-
-	errorResponse := map[string]any{
-		"error": map[string]any{
-			"message":    appErr.Message,
-			"type":       string(appErr.Type),
-			"code":       appErr.StatusCode,
+	errorResponse := fiber.Map{
+		"error": fiber.Map{
+			"message":    err.Error(),
 			"request_id": requestID,
 		},
 	}
 
-	return c.Status(appErr.StatusCode).JSON(errorResponse)
+	return c.Status(fiber.StatusInternalServerError).JSON(errorResponse)
 }
 
 // StoreSuccessfulSemanticCache stores the model response in semantic cache after successful completion

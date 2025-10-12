@@ -12,7 +12,6 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/api"
 	geminiapi "github.com/Egham-7/adaptive-proxy/internal/api/gemini"
 	"github.com/Egham-7/adaptive-proxy/internal/config"
-	"github.com/Egham-7/adaptive-proxy/internal/models"
 	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
 	"github.com/Egham-7/adaptive-proxy/internal/services/database"
 	"github.com/Egham-7/adaptive-proxy/internal/services/middleware"
@@ -211,46 +210,8 @@ func createFiberApp(cfg *config.Config) *fiber.App {
 		StrictRouting:        false,
 		Network:              "tcp",
 		ServerHeader:         "AdaptiveProxy",
-		ErrorHandler:         createErrorHandler(isProd),
+		// Use default Fiber error handler - simpler and more standard
 	})
-}
-
-func createErrorHandler(isProd bool) fiber.ErrorHandler {
-	return func(c *fiber.Ctx, err error) error {
-		// Sanitize error for external consumption
-		sanitized := models.SanitizeError(err)
-		statusCode := sanitized.GetStatusCode()
-
-		// Log internal error details (but don't expose them)
-		if isProd {
-			fiberlog.Errorf("Request error: path=%s, type=%s, retryable=%v",
-				c.Path(), sanitized.Type, sanitized.Retryable)
-		} else {
-			fiberlog.Errorf("Request error: %v (status: %d, path: %s)", err, statusCode, c.Path())
-		}
-
-		// Return sanitized error response
-		response := fiber.Map{
-			"error": sanitized.Message,
-			"type":  sanitized.Type,
-			"code":  statusCode,
-		}
-
-		// Add retry info for retryable errors
-		if sanitized.Retryable {
-			response["retryable"] = true
-			if sanitized.Type == models.ErrorTypeRateLimit {
-				response["retry_after"] = "60s"
-			}
-		}
-
-		// Add error code if available
-		if sanitized.Code != "" {
-			response["error_code"] = sanitized.Code
-		}
-
-		return c.Status(statusCode).JSON(response)
-	}
 }
 
 func setupMiddleware(app *fiber.App, cfg *config.Config, p *Proxy) {
@@ -280,7 +241,7 @@ func setupMiddleware(app *fiber.App, cfg *config.Config, p *Proxy) {
 			LimiterMiddleware: limiter.SlidingWindow{},
 			KeyGenerator:      keyFunc,
 			LimitReached: func(c *fiber.Ctx) error {
-				return models.NewRateLimitError(fmt.Sprintf("%d requests per %v", rlCfg.Max, rlCfg.Expiration))
+				return fmt.Errorf("%d requests per %v", rlCfg.Max, rlCfg.Expiration)
 			},
 		}))
 	} else {
@@ -296,7 +257,7 @@ func setupMiddleware(app *fiber.App, cfg *config.Config, p *Proxy) {
 				return c.IP()
 			},
 			LimitReached: func(c *fiber.Ctx) error {
-				return models.NewRateLimitError("1000 requests per minute")
+				return fmt.Errorf("1000 requests per minute")
 			},
 		}))
 	}

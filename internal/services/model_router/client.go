@@ -131,7 +131,7 @@ func (c *ModelRouterClient) SelectModel(
 
 	if c.circuitBreaker != nil && !c.circuitBreaker.CanExecute() {
 		fiberlog.Warnf("[CIRCUIT_BREAKER] Adaptive Router service unavailable (Open state). Using fallback.")
-		circuitErr := models.NewCircuitBreakerError("adaptive_router")
+		circuitErr := fmt.Errorf("adaptive_router")
 		fiberlog.Debugf("[CIRCUIT_BREAKER] %v", circuitErr)
 		return c.getFallbackModelResponse(req.Models)
 	}
@@ -158,7 +158,7 @@ func (c *ModelRouterClient) SelectModel(
 		if c.circuitBreaker != nil {
 			c.circuitBreaker.RecordFailure()
 		}
-		providerErr := models.NewProviderError("adaptive_router", "prediction request failed", err)
+		providerErr := fmt.Errorf("prediction request failed: %w", err)
 		fiberlog.Warnf("[PROVIDER_ERROR] %v", providerErr)
 		fiberlog.Warnf("[SELECT_MODEL] Request failed, using fallback model")
 		return c.getFallbackModelResponse(req.Models)

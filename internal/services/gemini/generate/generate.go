@@ -100,7 +100,7 @@ func (gs *GenerateService) SendRequest(
 
 	if err != nil {
 		fiberlog.Errorf("[%s] Gemini API request failed after %v: %v", requestID, duration, err)
-		return nil, models.NewProviderError("gemini", "generate request failed", err)
+		return nil, fmt.Errorf("generate request failed %w", err)
 	}
 
 	fiberlog.Infof("[%s] Gemini API request completed successfully in %v", requestID, duration)

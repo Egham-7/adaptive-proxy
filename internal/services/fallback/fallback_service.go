@@ -35,10 +35,10 @@ func (fs *FallbackService) Execute(
 	isStream bool,
 ) error {
 	if c == nil || executeFunc == nil || requestID == "" {
-		return models.NewValidationError("invalid input parameters", nil)
+		return fmt.Errorf("invalid input parameters")
 	}
 	if len(providers) == 0 {
-		return models.NewValidationError("no providers available", nil)
+		return fmt.Errorf("no providers available")
 	}
 
 	if len(providers) == 1 || fallbackConfig.Mode == "" {

@@ -58,7 +58,7 @@ func (h *GenerateHandler) Generate(c *fiber.Ctx) error {
 	req, err := h.requestSvc.ParseRequest(c)
 	if err != nil {
 		fiberlog.Warnf("[%s] Request parsing failed: %v", requestID, err)
-		return h.responseSvc.HandleError(c, models.NewValidationError("invalid request", err), requestID)
+		return h.responseSvc.HandleError(c, fmt.Errorf("invalid request: %w", err), requestID)
 	}
 
 	// Extract model from route parameter if present (for Gemini SDK compatibility)
@@ -95,7 +95,7 @@ func (h *GenerateHandler) Generate(c *fiber.Ctx) error {
 			providers := resolvedConfig.GetProviders("generate")
 			providerConfig, exists := providers[provider]
 			if !exists {
-				return h.responseSvc.HandleError(c, models.NewValidationError(fmt.Sprintf("provider %s not configured", provider), nil), requestID)
+				return h.responseSvc.HandleError(c, fmt.Errorf(fmt.Sprintf("provider %s not configured", provider), nil), requestID)
 			}
 
 			// Direct execution - no fallback for user-specified models
@@ -122,7 +122,7 @@ func (h *GenerateHandler) Generate(c *fiber.Ctx) error {
 	prompt, err := utils.ExtractPromptFromGeminiContents(req.Contents)
 	if err != nil {
 		fiberlog.Warnf("[%s] Failed to extract prompt for routing: %v", requestID, err)
-		return h.responseSvc.HandleError(c, models.NewValidationError("failed to extract prompt for routing: "+err.Error(), err), requestID)
+		return h.responseSvc.HandleError(c, fmt.Errorf("failed to extract prompt for routing: "+err.Error(), err), requestID)
 	}
 
 	// Use model router to select best model WITH CIRCUIT BREAKERS
@@ -184,7 +184,7 @@ func (h *GenerateHandler) StreamGenerate(c *fiber.Ctx) error {
 	req, err := h.requestSvc.ParseRequest(c)
 	if err != nil {
 		fiberlog.Warnf("[%s] Request parsing failed: %v", requestID, err)
-		return h.responseSvc.HandleError(c, models.NewValidationError("invalid request", err), requestID)
+		return h.responseSvc.HandleError(c, fmt.Errorf("invalid request: %w", err), requestID)
 	}
 
 	// Extract model from route parameter if present (for Gemini SDK compatibility)
@@ -221,7 +221,7 @@ func (h *GenerateHandler) StreamGenerate(c *fiber.Ctx) error {
 			providers := resolvedConfig.GetProviders("generate")
 			providerConfig, exists := providers[provider]
 			if !exists {
-				return h.responseSvc.HandleError(c, models.NewValidationError(fmt.Sprintf("provider %s not configured", provider), nil), requestID)
+				return h.responseSvc.HandleError(c, fmt.Errorf(fmt.Sprintf("provider %s not configured", provider), nil), requestID)
 			}
 
 			// Direct execution - no fallback for user-specified models
@@ -248,7 +248,7 @@ func (h *GenerateHandler) StreamGenerate(c *fiber.Ctx) error {
 	prompt, err := utils.ExtractPromptFromGeminiContents(req.Contents)
 	if err != nil {
 		fiberlog.Warnf("[%s] Failed to extract prompt for routing: %v", requestID, err)
-		return h.responseSvc.HandleError(c, models.NewValidationError("failed to extract prompt for routing: "+err.Error(), err), requestID)
+		return h.responseSvc.HandleError(c, fmt.Errorf("failed to extract prompt for routing: "+err.Error(), err), requestID)
 	}
 
 	// Use model router to select best model WITH CIRCUIT BREAKERS
@@ -305,7 +305,7 @@ func (h *GenerateHandler) checkCircuitBreaker(provider, requestID string) error 
 	cb := h.circuitBreakers[provider]
 	if cb != nil && !cb.CanExecute() {
 		fiberlog.Warnf("[%s] Circuit breaker is open for provider %s", requestID, provider)
-		return models.NewProviderError(provider, "circuit breaker open", nil)
+		return fmt.Errorf("circuit breaker open")
 	}
 	return nil
 }
@@ -440,25 +440,10 @@ func (h *GenerateHandler) createExecuteFunc(
 		reqCopy := *req
 		reqCopy.Model = provider.Model
 
-		// Call the generate service and handle retryable errors
+		// Call the generate service
 		err = h.executeProviderRequest(c, &reqCopy, provider.Provider, providerConfig, isStreaming, reqID, cacheSource)
-		// Check if the error is a retryable provider error that should trigger fallback
 		if err != nil {
-			if appErr, ok := err.(*models.AppError); ok && appErr.Type == models.ErrorTypeProvider && appErr.Retryable {
-				// Return the provider error to trigger fallback
-				return err
-			}
-			// For non-retryable errors, return original AppError or create one with Retryable=false
-			if appErr, ok := err.(*models.AppError); ok {
-				// Return the original AppError to preserve the concrete type and Retryable=false signal
-				return appErr
-			}
-			// For non-AppError types, create a non-retryable AppError
-			return &models.AppError{
-				Type:      models.ErrorTypeProvider,
-				Message:   fmt.Sprintf("non-retryable error: %v", err),
-				Retryable: false,
-			}
+			return err
 		}
 
 		// Store successful response in semantic cache

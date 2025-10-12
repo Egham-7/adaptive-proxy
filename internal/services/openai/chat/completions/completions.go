@@ -91,13 +91,13 @@ func (cs *CompletionService) generateConfigHash(providerConfig models.ProviderCo
 // createClient creates or retrieves a cached OpenAI client for the given provider
 func (cs *CompletionService) createClient(providerName string, resolvedConfig *config.Config, isStream bool) (*openai.Client, error) {
 	if resolvedConfig == nil {
-		return nil, models.NewInternalError("resolved config is nil", nil)
+		return nil, fmt.Errorf("resolved config is nil")
 	}
 
 	// Use resolved config directly - no more merging needed
 	providerConfig, exists := resolvedConfig.GetProviderConfig(providerName, serviceTypeChatCompletions)
 	if !exists {
-		return nil, models.NewProviderError(providerName, "provider is not configured", nil)
+		return nil, fmt.Errorf("provider is not configured")
 	}
 
 	// Generate cache key based on provider config hash
@@ -124,10 +124,10 @@ func (cs *CompletionService) createClient(providerName string, resolvedConfig *c
 
 func (cs *CompletionService) buildClient(providerConfig models.ProviderConfig, providerName string, isStream bool) (*openai.Client, error) {
 	if providerName == "" {
-		return nil, models.NewValidationError("provider name cannot be empty", nil)
+		return nil, fmt.Errorf("provider name cannot be empty")
 	}
 	if providerConfig.APIKey == "" {
-		return nil, models.NewProviderError(providerName, "API key not configured", nil)
+		return nil, fmt.Errorf("API key not configured")
 	}
 
 	opts := []openaiOption.RequestOption{
@@ -167,7 +167,7 @@ func (cs *CompletionService) HandleCompletion(
 	resolvedConfig *config.Config,
 ) error {
 	if c == nil || req == nil || resp == nil || requestID == "" {
-		return models.NewValidationError("invalid input parameters", nil)
+		return fmt.Errorf("invalid input parameters")
 	}
 
 	executeFunc := cs.createExecuteFunc(req, isStream, cacheSource, resolvedConfig)
@@ -212,7 +212,7 @@ func (cs *CompletionService) createExecuteFunc(
 		if cb := cs.circuitBreakers[provider.Provider]; cb != nil {
 			if !cb.CanExecute() {
 				fiberlog.Warnf("[%s] Circuit breaker is OPEN for provider %s, skipping", reqID, provider.Provider)
-				return models.NewCircuitBreakerError(provider.Provider)
+				return fmt.Errorf("circuit breaker is OPEN for provider %s", provider.Provider)
 			}
 			fiberlog.Debugf("[%s] Circuit breaker check passed for provider %s", reqID, provider.Provider)
 		}
@@ -229,9 +229,6 @@ func (cs *CompletionService) createExecuteFunc(
 		err = cs.executeOpenAICompletion(c, client, provider.Provider, &reqCopy, reqID, isStream, cacheSource, resolvedConfig)
 		if err != nil {
 			// Check if the error is a retryable provider error that should trigger fallback
-			if appErr, ok := err.(*models.AppError); ok && appErr.Type == models.ErrorTypeProvider && appErr.Retryable {
-				return err // Return as-is to trigger fallback
-			}
 			// For non-retryable errors, wrap them to prevent fallback
 			return fmt.Errorf("non-retryable error from provider %s: %w", provider.Provider, err)
 		}
@@ -341,7 +338,7 @@ func (cs *CompletionService) handleNonStreamingCompletion(
 			cb.RecordFailure()
 			fiberlog.Warnf("[%s] 🔴 Circuit breaker recorded FAILURE for provider %s (non-streaming)", requestID, providerName)
 		}
-		return models.NewProviderError(providerName, "completion request failed", err)
+		return fmt.Errorf("completion request failed %w", err)
 	}
 
 	// Convert response using format adapter with cache source

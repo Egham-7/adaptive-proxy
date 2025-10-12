@@ -100,7 +100,7 @@ func (cts *CountTokensService) SendRequest(
 
 	if err != nil {
 		fiberlog.Errorf("[%s] Gemini CountTokens API request failed after %v: %v", requestID, duration, err)
-		return nil, models.NewProviderError("gemini", "count tokens request failed", err)
+		return nil, fmt.Errorf("count tokens request failed: %w", err)
 	}
 
 	fiberlog.Infof("[%s] Gemini CountTokens API request completed successfully in %v - tokens: %d", requestID, duration, resp.TotalTokens)

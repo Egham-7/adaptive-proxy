@@ -108,33 +108,14 @@ func (rs *ResponseService) HandleStreamingResponse(
 func (rs *ResponseService) HandleError(c *fiber.Ctx, err error, requestID string) error {
 	fiberlog.Errorf("[%s] anthropic messages error: %v", requestID, err)
 
-	// Use the same error sanitization as the main app
-	sanitized := models.SanitizeError(err)
-	statusCode := sanitized.GetStatusCode()
-
-	// Create response with sanitized error
 	response := fiber.Map{
 		"error": fiber.Map{
-			"type":    sanitized.Type,
-			"message": sanitized.Message,
-			"code":    statusCode,
+			"message":    err.Error(),
+			"request_id": requestID,
 		},
 	}
 
-	// Add retry info for retryable errors
-	if sanitized.Retryable {
-		response["error"].(fiber.Map)["retryable"] = true
-		if sanitized.Type == models.ErrorTypeRateLimit {
-			response["error"].(fiber.Map)["retry_after"] = "60s"
-		}
-	}
-
-	// Add error code if available
-	if sanitized.Code != "" {
-		response["error"].(fiber.Map)["error_code"] = sanitized.Code
-	}
-
-	return c.Status(statusCode).JSON(response)
+	return c.Status(fiber.StatusInternalServerError).JSON(response)
 }
 
 // StoreSuccessfulSemanticCache stores the model response in semantic cache after successful completion

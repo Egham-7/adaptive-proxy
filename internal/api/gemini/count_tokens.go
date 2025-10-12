@@ -1,6 +1,8 @@
 package gemini
 
 import (
+	"fmt"
+
 	"github.com/Egham-7/adaptive-proxy/internal/config"
 	"github.com/Egham-7/adaptive-proxy/internal/models"
 	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
@@ -216,7 +218,7 @@ func (h *CountTokensHandler) getProviderConfig(
 	providerConfig, exists := providers[provider]
 	if !exists {
 		fiberlog.Errorf("[%s] Provider %s not configured", requestID, provider)
-		return models.ProviderConfig{}, models.NewProviderError(provider, "not configured", nil)
+		return models.ProviderConfig{}, fmt.Errorf("not configured")
 	}
 
 	return providerConfig, nil
@@ -227,7 +229,7 @@ func (h *CountTokensHandler) checkCircuitBreaker(provider, requestID string) err
 	cb := h.circuitBreakers[provider]
 	if cb != nil && !cb.CanExecute() {
 		fiberlog.Warnf("[%s] Circuit breaker open for %s", requestID, provider)
-		return models.NewProviderError(provider, "circuit breaker open", nil)
+		return fmt.Errorf("circuit breaker open")
 	}
 	return nil
 }

@@ -195,9 +195,8 @@ func (h *MessagesHandler) createExecuteFunc(
 		reqCopy := *req
 		reqCopy.Model = anthropic.Model(provider.Model)
 
-		// Call the messages service and handle retryable errors
+		// Call the messages service
 		err = h.messagesSvc.HandleAnthropicProvider(c, &reqCopy, providerConfig, isStreaming, reqID, h.responseSvc, provider.Provider, cacheSource)
-		// Check if the error is a retryable provider error that should trigger fallback
 		if err != nil {
 			// Record failure in circuit breaker
 			if cb := h.circuitBreakers[provider.Provider]; cb != nil {
@@ -208,22 +207,7 @@ func (h *MessagesHandler) createExecuteFunc(
 				}
 				fiberlog.Warnf("[%s] 🔴 Circuit breaker recorded FAILURE for provider %s (%s)", reqID, provider.Provider, streamType)
 			}
-
-			if appErr, ok := err.(*models.AppError); ok && appErr.Type == models.ErrorTypeProvider && appErr.Retryable {
-				// Return the provider error to trigger fallback
-				return err
-			}
-			// For non-retryable errors, return original AppError or create one with Retryable=false
-			if appErr, ok := err.(*models.AppError); ok {
-				// Return the original AppError to preserve the concrete type and Retryable=false signal
-				return appErr
-			}
-			// For non-AppError types, create a non-retryable AppError
-			return &models.AppError{
-				Type:      models.ErrorTypeProvider,
-				Message:   fmt.Sprintf("non-retryable error: %v", err),
-				Retryable: false,
-			}
+			return err
 		}
 
 		// Record success in circuit breaker

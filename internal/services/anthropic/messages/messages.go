@@ -132,7 +132,7 @@ func (ms *MessagesService) SendMessage(
 
 	if err != nil {
 		fiberlog.Errorf("[%s] Anthropic API request failed after %v: %v", requestID, duration, err)
-		return nil, models.NewProviderError("anthropic", "message request failed", err)
+		return nil, fmt.Errorf("message request failed: %w", err)
 	}
 
 	fiberlog.Infof("[%s] Anthropic API request completed successfully in %v - usage: input:%d, output:%d",
