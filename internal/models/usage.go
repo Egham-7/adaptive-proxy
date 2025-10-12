@@ -95,7 +95,7 @@ func (m Metadata) Value() (driver.Value, error) {
 	return string(b), err
 }
 
-func (m *Metadata) Scan(value interface{}) error {
+func (m *Metadata) Scan(value any) error {
 	if value == nil {
 		*m = make(Metadata)
 		return nil
