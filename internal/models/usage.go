@@ -5,22 +5,22 @@ import (
 )
 
 type APIKey struct {
-	ID              uint      `gorm:"primaryKey;autoIncrement"`
-	Name            string    `gorm:"size:255"`
-	KeyHash         string    `gorm:"uniqueIndex;size:64"`
-	KeyPrefix       string    `gorm:"index;size:12"`
-	OrganizationID  string    `gorm:"size:255;index"`
-	UserID          string    `gorm:"size:255;index"`
-	ProjectID       string    `gorm:"size:255;index"`
-	Metadata        string    `gorm:"type:String"`
-	Scopes          string    `gorm:"type:String"`
-	RateLimitRpm    int       `gorm:"type:Int32"`
-	BudgetLimit     float64   `gorm:"type:Float64"`
-	BudgetUsed      float64   `gorm:"type:Float64"`
-	BudgetCurrency  string    `gorm:"size:3"`
-	BudgetResetType string    `gorm:"size:20"`
+	ID              uint    `gorm:"primaryKey;autoIncrement"`
+	Name            string  `gorm:"size:255"`
+	KeyHash         string  `gorm:"uniqueIndex;size:64"`
+	KeyPrefix       string  `gorm:"index;size:12"`
+	OrganizationID  string  `gorm:"size:255;index"`
+	UserID          string  `gorm:"size:255;index"`
+	ProjectID       string  `gorm:"size:255;index"`
+	Metadata        string  `gorm:"type:String"`
+	Scopes          string  `gorm:"type:String"`
+	RateLimitRpm    int     `gorm:"type:Int32"`
+	BudgetLimit     float64 `gorm:"type:Float64"`
+	BudgetUsed      float64 `gorm:"type:Float64"`
+	BudgetCurrency  string  `gorm:"size:3"`
+	BudgetResetType string  `gorm:"size:20"`
 	BudgetResetAt   time.Time
-	IsActive        bool      `gorm:"index"`
+	IsActive        bool `gorm:"index"`
 	ExpiresAt       time.Time
 	LastUsedAt      time.Time
 	CreatedAt       time.Time `gorm:"autoCreateTime"`
