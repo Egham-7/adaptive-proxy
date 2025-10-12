@@ -5,7 +5,7 @@ import (
 )
 
 type APIKey struct {
-	ID              uint      `gorm:"primaryKey" json:"id"`
+	ID              uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name            string    `gorm:"not null;size:255" json:"name"`
 	KeyHash         string    `gorm:"uniqueIndex;not null;size:64" json:"-"`
 	KeyPrefix       string    `gorm:"not null;index;size:12" json:"key_prefix"`
@@ -82,7 +82,7 @@ const (
 type Metadata map[string]any
 
 type APIKeyUsage struct {
-	ID           uint      `gorm:"primaryKey" json:"id"`
+	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	APIKeyID     uint      `gorm:"not null;index" json:"api_key_id"`
 	Endpoint     string    `gorm:"not null;size:100;index;default:''" json:"endpoint"`
 	Provider     string    `gorm:"not null;size:50;default:''" json:"provider"`
@@ -100,6 +100,10 @@ type APIKeyUsage struct {
 	IPAddress    string    `gorm:"not null;size:45;default:''" json:"ip_address,omitzero"`
 	ErrorMessage string    `gorm:"not null;type:text;default:''" json:"error_message,omitzero"`
 	CreatedAt    time.Time `gorm:"not null;autoCreateTime;index" json:"created_at"`
+}
+
+func (APIKeyUsage) TableName() string {
+	return "api_key_usages"
 }
 
 type UsageStats struct {
@@ -126,38 +130,38 @@ const (
 )
 
 type OrganizationCredit struct {
-	ID             uint      `gorm:"primaryKey" json:"id"`
-	OrganizationID string    `gorm:"uniqueIndex;not null;type:varchar(30)" json:"organization_id"`
-	Balance        float64   `gorm:"type:decimal(12,6);default:0" json:"balance"`
-	TotalPurchased float64   `gorm:"type:decimal(12,6);default:0" json:"total_purchased"`
-	TotalUsed      float64   `gorm:"type:decimal(12,6);default:0" json:"total_used"`
+	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	OrganizationID string    `gorm:"uniqueIndex;not null;size:255" json:"organization_id"`
+	Balance        float64   `gorm:"not null;default:0" json:"balance"`
+	TotalPurchased float64   `gorm:"not null;default:0" json:"total_purchased"`
+	TotalUsed      float64   `gorm:"not null;default:0" json:"total_used"`
 	CreatedAt      time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 type CreditTransaction struct {
-	ID                    uint                  `gorm:"primaryKey" json:"id"`
-	OrganizationID        string                `gorm:"not null;index;type:varchar(30)" json:"organization_id"`
-	UserID                string                `gorm:"not null;index;type:varchar(100)" json:"user_id"`
-	Type                  CreditTransactionType `gorm:"not null;index;type:varchar(20)" json:"type"`
-	Amount                float64               `gorm:"type:decimal(12,6);not null" json:"amount"`
-	BalanceAfter          float64               `gorm:"type:decimal(12,6);not null" json:"balance_after"`
+	ID                    uint                  `gorm:"primaryKey;autoIncrement" json:"id"`
+	OrganizationID        string                `gorm:"not null;index;size:255" json:"organization_id"`
+	UserID                string                `gorm:"not null;index;size:255" json:"user_id"`
+	Type                  CreditTransactionType `gorm:"not null;index;size:20" json:"type"`
+	Amount                float64               `gorm:"not null" json:"amount"`
+	BalanceAfter          float64               `gorm:"not null" json:"balance_after"`
 	Description           string                `gorm:"type:text" json:"description,omitempty"`
 	Metadata              Metadata              `gorm:"type:jsonb" json:"metadata"`
-	StripePaymentIntentID string                `gorm:"index;type:varchar(100)" json:"stripe_payment_intent_id,omitempty"`
-	StripeSessionID       string                `gorm:"type:varchar(100)" json:"stripe_session_id,omitempty"`
+	StripePaymentIntentID string                `gorm:"index;size:100" json:"stripe_payment_intent_id,omitempty"`
+	StripeSessionID       string                `gorm:"size:100" json:"stripe_session_id,omitempty"`
 	APIKeyID              uint                  `gorm:"index" json:"api_key_id,omitempty"`
 	APIUsageID            uint                  `gorm:"index" json:"api_usage_id,omitempty"`
 	CreatedAt             time.Time             `gorm:"autoCreateTime;index" json:"created_at"`
 }
 
 type CreditPackage struct {
-	ID            uint      `gorm:"primaryKey" json:"id"`
-	Name          string    `gorm:"not null;type:varchar(100)" json:"name"`
+	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name          string    `gorm:"not null;size:100" json:"name"`
 	Description   string    `gorm:"type:text" json:"description,omitempty"`
-	CreditAmount  float64   `gorm:"type:decimal(12,6);not null" json:"credit_amount"`
-	Price         float64   `gorm:"type:decimal(12,6);not null" json:"price"`
-	StripePriceID string    `gorm:"uniqueIndex;not null;type:varchar(100)" json:"stripe_price_id"`
+	CreditAmount  float64   `gorm:"not null" json:"credit_amount"`
+	Price         float64   `gorm:"not null" json:"price"`
+	StripePriceID string    `gorm:"uniqueIndex;not null;size:100" json:"stripe_price_id"`
 	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
