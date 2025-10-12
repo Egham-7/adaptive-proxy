@@ -20,6 +20,7 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/services/openai/chat/completions"
 	"github.com/Egham-7/adaptive-proxy/internal/services/select_model"
 	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
+	"github.com/Egham-7/adaptive-proxy/pkg/builder"
 
 	"github.com/gofiber/fiber/v2"
 	fiberlog "github.com/gofiber/fiber/v2/log"
@@ -39,7 +40,7 @@ type Proxy struct {
 	app              *fiber.App
 	redis            *redis.Client
 	db               *database.DB
-	builder          *Builder
+	builder          *builder.Builder
 	enabledEndpoints map[string]bool
 	usageTracker     *middleware.UsageTracker
 }
@@ -72,11 +73,11 @@ func NewProxy(cfg *config.Config) *Proxy {
 
 // NewProxyWithBuilder creates a new Proxy instance with a configuration builder.
 // This allows full control over middlewares and endpoint configuration.
-func NewProxyWithBuilder(builder *Builder) *Proxy {
+func NewProxyWithBuilder(b *builder.Builder) *Proxy {
 	return &Proxy{
-		config:           builder.Build(),
-		builder:          builder,
-		enabledEndpoints: builder.GetEnabledEndpoints(),
+		config:           b.Build(),
+		builder:          b,
+		enabledEndpoints: b.GetEnabledEndpoints(),
 	}
 }
 
