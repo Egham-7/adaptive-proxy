@@ -11,6 +11,7 @@ import (
 type APIKeyMiddleware struct {
 	apiKeyService *usage.APIKeyService
 	usageService  *usage.Service
+	rateLimiter   *usage.RateLimiter
 	config        *models.APIKeyConfig
 }
 
@@ -25,6 +26,7 @@ func NewAPIKeyMiddleware(apiKeyService *usage.APIKeyService, usageService *usage
 	return &APIKeyMiddleware{
 		apiKeyService: apiKeyService,
 		usageService:  usageService,
+		rateLimiter:   usage.NewRateLimiter(),
 		config:        config,
 	}
 }
@@ -59,6 +61,20 @@ func (m *APIKeyMiddleware) authenticate(required bool) fiber.Handler {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Invalid or expired API key",
 			})
+		}
+
+		if apiKey.RateLimitRpm > 0 {
+			allowed, err := m.rateLimiter.CheckRateLimit(c.Context(), apiKey.ID, apiKey.RateLimitRpm)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to check rate limit",
+				})
+			}
+			if !allowed {
+				return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+					"error": "Rate limit exceeded",
+				})
+			}
 		}
 
 		if m.usageService != nil {

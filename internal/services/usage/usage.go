@@ -54,6 +54,12 @@ func (s *Service) RecordUsage(ctx context.Context, params models.RecordUsagePara
 		return nil, fmt.Errorf("failed to record usage: %w", err)
 	}
 
+	if params.Cost > 0 && params.APIKeyID > 0 {
+		if err := s.IncrementBudgetUsed(ctx, params.APIKeyID, params.Cost); err != nil {
+			return &usage, fmt.Errorf("usage recorded but failed to increment budget: %w", err)
+		}
+	}
+
 	if params.OrganizationID != "" && params.Cost > 0 {
 		metadataMap := map[string]any{
 			"provider": params.Provider,
