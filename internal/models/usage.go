@@ -5,20 +5,20 @@ import (
 )
 
 type APIKey struct {
-	ID              uint    `gorm:"primaryKey;autoIncrement"`
-	Name            string  `gorm:"size:255"`
-	KeyHash         string  `gorm:"uniqueIndex;size:64"`
-	KeyPrefix       string  `gorm:"index;size:12"`
-	OrganizationID  string  `gorm:"size:255;index"`
-	UserID          string  `gorm:"size:255;index"`
-	ProjectID       string  `gorm:"size:255;index"`
-	Metadata        string  `gorm:"type:String"`
-	Scopes          string  `gorm:"type:String"`
-	RateLimitRpm    int     `gorm:"type:Int32"`
-	BudgetLimit     float64 `gorm:"type:Float64"`
-	BudgetUsed      float64 `gorm:"type:Float64"`
-	BudgetCurrency  string  `gorm:"size:3"`
-	BudgetResetType string  `gorm:"size:20"`
+	ID              uint `gorm:"primaryKey;autoIncrement"`
+	Name            string
+	KeyHash         string `gorm:"uniqueIndex"`
+	KeyPrefix       string `gorm:"index"`
+	OrganizationID  string `gorm:"index"`
+	UserID          string `gorm:"index"`
+	ProjectID       string `gorm:"index"`
+	Metadata        string
+	Scopes          string
+	RateLimitRpm    int
+	BudgetLimit     float64
+	BudgetUsed      float64
+	BudgetCurrency  string
+	BudgetResetType string
 	BudgetResetAt   time.Time
 	IsActive        bool `gorm:"index"`
 	ExpiresAt       time.Time
@@ -80,23 +80,23 @@ const (
 )
 
 type APIKeyUsage struct {
-	ID           uint      `gorm:"primaryKey;autoIncrement"`
-	APIKeyID     uint      `gorm:"index"`
-	Endpoint     string    `gorm:"size:100;index"`
-	Provider     string    `gorm:"size:50"`
-	Model        string    `gorm:"size:100"`
-	TokensInput  int       `gorm:"type:Int32"`
-	TokensOutput int       `gorm:"type:Int32"`
-	TokensTotal  int       `gorm:"type:Int32"`
-	Cost         float64   `gorm:"type:Float64"`
-	Currency     string    `gorm:"size:3"`
-	StatusCode   int       `gorm:"type:Int32"`
-	LatencyMs    int       `gorm:"type:Int32"`
-	Metadata     string    `gorm:"type:String"`
-	RequestID    string    `gorm:"size:100;index"`
-	UserAgent    string    `gorm:"size:255"`
-	IPAddress    string    `gorm:"size:45"`
-	ErrorMessage string    `gorm:"type:String"`
+	ID           uint   `gorm:"primaryKey;autoIncrement"`
+	APIKeyID     uint   `gorm:"index"`
+	Endpoint     string `gorm:"index"`
+	Provider     string
+	Model        string
+	TokensInput  int
+	TokensOutput int
+	TokensTotal  int
+	Cost         float64
+	Currency     string
+	StatusCode   int
+	LatencyMs    int
+	Metadata     string
+	RequestID    string `gorm:"index"`
+	UserAgent    string
+	IPAddress    string
+	ErrorMessage string
 	CreatedAt    time.Time `gorm:"autoCreateTime;index"`
 }
 
@@ -129,7 +129,7 @@ const (
 
 type OrganizationCredit struct {
 	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	OrganizationID string    `gorm:"uniqueIndex;not null;size:255" json:"organization_id"`
+	OrganizationID string    `gorm:"uniqueIndex;not null" json:"organization_id"`
 	Balance        float64   `gorm:"not null;default:0" json:"balance"`
 	TotalPurchased float64   `gorm:"not null;default:0" json:"total_purchased"`
 	TotalUsed      float64   `gorm:"not null;default:0" json:"total_used"`
@@ -139,27 +139,27 @@ type OrganizationCredit struct {
 
 type CreditTransaction struct {
 	ID                    uint                  `gorm:"primaryKey;autoIncrement"`
-	OrganizationID        string                `gorm:"index;size:255"`
-	UserID                string                `gorm:"index;size:255"`
-	Type                  CreditTransactionType `gorm:"index;size:20"`
-	Amount                float64               `gorm:"type:Float64"`
-	BalanceAfter          float64               `gorm:"type:Float64"`
-	Description           string                `gorm:"type:String"`
-	Metadata              string                `gorm:"type:String"`
-	StripePaymentIntentID string                `gorm:"index;size:100"`
-	StripeSessionID       string                `gorm:"size:100"`
-	APIKeyID              uint                  `gorm:"index;type:UInt32"`
-	APIUsageID            uint                  `gorm:"index;type:UInt32"`
-	CreatedAt             time.Time             `gorm:"autoCreateTime;index"`
+	OrganizationID        string                `gorm:"index"`
+	UserID                string                `gorm:"index"`
+	Type                  CreditTransactionType `gorm:"index"`
+	Amount                float64
+	BalanceAfter          float64
+	Description           string
+	Metadata              string
+	StripePaymentIntentID string `gorm:"index"`
+	StripeSessionID       string
+	APIKeyID              uint      `gorm:"index"`
+	APIUsageID            uint      `gorm:"index"`
+	CreatedAt             time.Time `gorm:"autoCreateTime;index"`
 }
 
 type CreditPackage struct {
-	ID            uint      `gorm:"primaryKey;autoIncrement"`
-	Name          string    `gorm:"size:100"`
-	Description   string    `gorm:"type:String"`
-	CreditAmount  float64   `gorm:"type:Float64"`
-	Price         float64   `gorm:"type:Float64"`
-	StripePriceID string    `gorm:"uniqueIndex;size:100"`
+	ID            uint `gorm:"primaryKey;autoIncrement"`
+	Name          string
+	Description   string
+	CreditAmount  float64
+	Price         float64
+	StripePriceID string    `gorm:"uniqueIndex"`
 	CreatedAt     time.Time `gorm:"autoCreateTime"`
 	UpdatedAt     time.Time `gorm:"autoUpdateTime"`
 }
