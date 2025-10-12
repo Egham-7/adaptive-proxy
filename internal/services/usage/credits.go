@@ -38,9 +38,9 @@ func (s *CreditsService) GetOrganizationCredit(ctx context.Context, organization
 	if err == gorm.ErrRecordNotFound {
 		credit = models.OrganizationCredit{
 			OrganizationID: organizationID,
-			Balance:        float64(0),
-			TotalPurchased: float64(0),
-			TotalUsed:      float64(0),
+			Balance:        0,
+			TotalPurchased: 0,
+			TotalUsed:      0,
 		}
 
 		if err := s.db.WithContext(ctx).Create(&credit).Error; err != nil {
@@ -139,9 +139,9 @@ func (s *CreditsService) AddCredits(ctx context.Context, params models.AddCredit
 			if err == gorm.ErrRecordNotFound {
 				credit = models.OrganizationCredit{
 					OrganizationID: params.OrganizationID,
-					Balance:        float64(0),
-					TotalPurchased: float64(0),
-					TotalUsed:      float64(0),
+					Balance:        0,
+					TotalPurchased: 0,
+					TotalUsed:      0,
 				}
 				if err := tx.Create(&credit).Error; err != nil {
 					return fmt.Errorf("failed to create organization credit: %w", err)
