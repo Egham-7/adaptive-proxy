@@ -36,9 +36,9 @@ type APIKeyConfig struct {
 
 type APIKeyCreateRequest struct {
 	Name            string    `json:"name" validate:"required,min=1,max=255"`
-	OrganizationID  string    `json:"organization_id,omitempty"`
-	UserID          string    `json:"user_id,omitempty"`
-	ProjectID       string    `json:"project_id,omitempty"`
+	OrganizationID  string    `json:"organization_id,omitzero"`
+	UserID          string    `json:"user_id,omitzero"`
+	ProjectID       string    `json:"project_id,omitzero"`
 	Metadata        string    `json:"metadata,omitzero"`
 	Scopes          []string  `json:"scopes,omitzero"`
 	RateLimitRpm    int       `json:"rate_limit_rpm,omitzero"`
@@ -53,9 +53,9 @@ type APIKeyResponse struct {
 	Name            string    `json:"name"`
 	Key             string    `json:"key,omitzero"`
 	KeyPrefix       string    `json:"key_prefix"`
-	OrganizationID  string    `json:"organization_id,omitempty"`
-	UserID          string    `json:"user_id,omitempty"`
-	ProjectID       string    `json:"project_id,omitempty"`
+	OrganizationID  string    `json:"organization_id,omitzero"`
+	UserID          string    `json:"user_id,omitzero"`
+	ProjectID       string    `json:"project_id,omitzero"`
 	Metadata        string    `json:"metadata,omitzero"`
 	Scopes          string    `json:"scopes,omitzero"`
 	RateLimitRpm    int       `json:"rate_limit_rpm,omitzero"`
