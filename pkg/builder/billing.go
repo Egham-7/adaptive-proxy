@@ -11,7 +11,6 @@ func (b *Builder) EnableCredits() *Builder {
 			AllowAnonymous: true,
 		}
 	}
-	b.cfg.Server.APIKeyConfig.CreditsEnabled = true
 	return b
 }
 
@@ -24,10 +23,6 @@ func (b *Builder) WithStripe(secretKey, webhookSecret string) *Builder {
 	b.EnableCredits()
 
 	return b
-}
-
-func (b *Builder) IsCreditsEnabled() bool {
-	return b.cfg.Server.APIKeyConfig != nil && b.cfg.Server.APIKeyConfig.CreditsEnabled
 }
 
 func (b *Builder) GetStripeConfig() (secretKey, webhookSecret string, configured bool) {

@@ -43,6 +43,5 @@ func DefaultAPIKeyConfig() models.APIKeyConfig {
 		HeaderNames:    []string{"X-API-Key", "X-Stainless-API-Key"},
 		RequireForAll:  false,
 		AllowAnonymous: true,
-		CreditsEnabled: false,
 	}
 }

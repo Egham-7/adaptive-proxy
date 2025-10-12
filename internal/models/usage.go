@@ -32,7 +32,6 @@ type APIKeyConfig struct {
 	HeaderNames    []string `yaml:"header_names,omitempty" json:"header_names,omitzero"`
 	RequireForAll  bool     `yaml:"require_for_all,omitempty" json:"require_for_all,omitzero"`
 	AllowAnonymous bool     `yaml:"allow_anonymous,omitempty" json:"allow_anonymous,omitzero"`
-	CreditsEnabled bool     `yaml:"credits_enabled,omitempty" json:"credits_enabled,omitzero"`
 }
 
 type APIKeyCreateRequest struct {

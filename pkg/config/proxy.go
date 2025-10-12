@@ -521,11 +521,12 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	if db != nil && cfg.Server.APIKeyConfig != nil && cfg.Server.APIKeyConfig.Enabled {
 		apiKeySvc := usage.NewAPIKeyService(db.DB)
 
-		if cfg.Server.APIKeyConfig.CreditsEnabled {
+		creditsEnabled := cfg.Server.StripeConfig != nil
+
+		if creditsEnabled {
 			creditsSvc = usage.NewCreditsService(db.DB)
 
-			// Initialize Stripe service if configured
-			if cfg.Server.StripeConfig != nil && cfg.Server.StripeConfig.SecretKey != "" {
+			if cfg.Server.StripeConfig.SecretKey != "" {
 				stripeSvc = usage.NewStripeService(usage.StripeConfig{
 					SecretKey:     cfg.Server.StripeConfig.SecretKey,
 					WebhookSecret: cfg.Server.StripeConfig.WebhookSecret,
@@ -536,26 +537,22 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 		usageSvc = usage.NewService(db.DB, creditsSvc)
 		apiKeyMiddleware = middleware.NewAPIKeyMiddleware(apiKeySvc, usageSvc, cfg.Server.APIKeyConfig)
 
-		// Apply API key middleware globally if required
 		if cfg.Server.APIKeyConfig.RequireForAll {
 			app.Use(apiKeyMiddleware.RequireAPIKey())
 		} else if !cfg.Server.APIKeyConfig.AllowAnonymous {
 			app.Use(apiKeyMiddleware.Authenticate())
 		}
 
-		// Register admin API key routes
-		apiKeyHandler := api.NewAPIKeyHandler(apiKeySvc, usageSvc, cfg.Server.APIKeyConfig.CreditsEnabled)
+		apiKeyHandler := api.NewAPIKeyHandler(apiKeySvc, usageSvc, creditsEnabled)
 		apiKeyHandler.RegisterRoutes(app, "/admin/api-keys")
 
-		// Register credits routes if enabled
-		if cfg.Server.APIKeyConfig.CreditsEnabled && creditsSvc != nil {
+		if creditsEnabled && creditsSvc != nil {
 			creditsHandler := api.NewCreditsHandler(creditsSvc)
 			creditsGroup := app.Group("/admin/credits")
 			creditsGroup.Get("/balance/:organization_id", creditsHandler.GetBalance)
 			creditsGroup.Post("/check", creditsHandler.CheckCredits)
 			creditsGroup.Get("/transactions/:organization_id", creditsHandler.GetTransactionHistory)
 
-			// Register Stripe routes if Stripe is configured
 			if stripeSvc != nil {
 				stripeHandler := api.NewStripeHandler(stripeSvc)
 				// Webhook endpoint (no auth required - Stripe signature verified)
@@ -698,7 +695,8 @@ func initializeServices(db *database.DB, cfg *config.Config) *proxyServices {
 	apiKeySvc := usage.NewAPIKeyService(db.DB)
 
 	var creditsSvc *usage.CreditsService
-	if cfg.Server.APIKeyConfig.CreditsEnabled {
+	creditsEnabled := cfg.Server.StripeConfig != nil
+	if creditsEnabled {
 		creditsSvc = usage.NewCreditsService(db.DB)
 	}
 
@@ -706,7 +704,7 @@ func initializeServices(db *database.DB, cfg *config.Config) *proxyServices {
 
 	var usageTracker *middleware.UsageTracker
 	if usageSvc != nil {
-		usageTracker = middleware.NewUsageTracker(usageSvc, creditsSvc, cfg.Server.APIKeyConfig.CreditsEnabled)
+		usageTracker = middleware.NewUsageTracker(usageSvc, creditsSvc, creditsEnabled)
 	}
 
 	return &proxyServices{
