@@ -1,0 +1,115 @@
+---
+# Adaptive Backend Configuration
+# Environment variables can be referenced using ${VAR} or ${VAR:-default} syntax (defaults apply when a variable is unset or empty)
+
+server:
+  port: "${PORT:-8080}"
+  allowed_origins: "${ALLOWED_ORIGINS:-http://localhost:3000}"
+  environment: "${ENV:-development}"
+  log_level: "${LOG_LEVEL:-info}"
+  api_key:
+    enabled: true
+    header_name: "X-API-Key"
+    require_for_all: ${API_KEY_REQUIRE_FOR_ALL:-false}
+    allow_anonymous: ${API_KEY_ALLOW_ANONYMOUS:-true}
+  stripe:
+    secret_key: "${STRIPE_SECRET_KEY}"
+    webhook_secret: "${STRIPE_WEBHOOK_SECRET}"
+
+# Endpoint-specific provider configurations
+endpoints:
+  chat_completions:
+    providers:
+      openai:
+        api_key: "${OPENAI_API_KEY}"
+        enabled: true
+
+      anthropic:
+        api_key: "${ANTHROPIC_API_KEY}"
+        enabled: true
+        base_url: "https://api.anthropic.com/v1/"
+
+      deepseek:
+        api_key: "${DEEPSEEK_API_KEY}"
+        enabled: true
+        base_url: "https://api.deepseek.com"
+
+      gemini:
+        api_key: "${GEMINI_API_KEY}"
+        enabled: true
+        base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
+
+  messages:
+    providers:
+      anthropic:
+        api_key: "${ANTHROPIC_API_KEY}"
+        enabled: true
+        base_url: "https://api.anthropic.com"
+
+  select_model:
+    providers:
+      openai:
+        api_key: "${OPENAI_API_KEY}"
+        enabled: true
+
+      anthropic:
+        api_key: "${ANTHROPIC_API_KEY}"
+        enabled: true
+        base_url: "https://api.anthropic.com/v1/"
+
+      deepseek:
+        api_key: "${DEEPSEEK_API_KEY}"
+        enabled: true
+        base_url: "https://api.deepseek.com"
+
+  generate:
+    providers:
+      gemini:
+        api_key: "${GEMINI_API_KEY}"
+        enabled: true
+        base_url: "https://generativelanguage.googleapis.com/v1beta"
+
+  count_tokens:
+    providers:
+      gemini:
+        api_key: "${GEMINI_API_KEY}"
+        enabled: true
+        base_url: "https://generativelanguage.googleapis.com/v1beta"
+
+# Model router configuration
+model_router:
+  cost_bias: 0.9 # 0.0 = cheapest, 1.0 = best performance
+  cache:
+    enabled: true
+    backend: "${CACHE_BACKEND:-redis}" # "redis" or "memory"
+    redis_url: "${REDIS_URL:-redis://localhost:6379}" # Required if backend is "redis"
+    capacity: 1000 # Required if backend is "memory" (LRU cache size)
+    semantic_threshold: 0.95
+    openai_api_key: "${OPENAI_API_KEY}" # For embeddings
+  client:
+    adaptive_router_url: "${ADAPTIVE_ROUTER_URL:-http://localhost:8000}"
+    jwt_secret: "${ADAPTIVE_ROUTER_JWT_SECRET:-dev-secret}"
+    timeout_ms: 3000
+    circuit_breaker:
+      failure_threshold: 3
+      success_threshold: 2
+      timeout_ms: 5000
+      reset_after_ms: 30000
+
+# Fallback configuration
+fallback:
+  mode: "race" # "race" or "sequential"
+  timeout_ms: 30000 # Keep longer for streaming LLM responses
+  max_retries: 3
+  circuit_breaker:
+    failure_threshold: 5
+    success_threshold: 3
+    timeout_ms: 15000
+    reset_after_ms: 60000
+
+# Database configuration (use either DSN or individual fields)
+database:
+  type: "postgresql"
+  dsn: "${DATABASE_URL:-clickhouse://default:@localhost:9000/adaptive}"
+  max_open_conns: 25
+  max_idle_conns: 5
