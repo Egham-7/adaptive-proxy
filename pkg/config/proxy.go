@@ -607,7 +607,7 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 		countTokensHandler = geminiapi.NewCountTokensHandler(cfg, modelRouter, circuitBreakers)
 	}
 
-	healthHandler := api.NewHealthHandler(cfg, redisClient)
+	healthHandler := api.NewHealthHandler(cfg, redisClient, db)
 
 	// Health check endpoint (always enabled)
 	app.Get("/health", healthHandler.HealthCheck)
