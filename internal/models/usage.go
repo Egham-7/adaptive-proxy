@@ -5,26 +5,26 @@ import (
 )
 
 type APIKey struct {
-	ID              uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name            string    `gorm:"not null;size:255" json:"name"`
-	KeyHash         string    `gorm:"uniqueIndex;not null;size:64" json:"-"`
-	KeyPrefix       string    `gorm:"not null;index;size:12" json:"key_prefix"`
-	OrganizationID  string    `gorm:"size:255;index;default:''" json:"organization_id,omitempty"`
-	UserID          string    `gorm:"size:255;index;default:''" json:"user_id,omitempty"`
-	ProjectID       *string   `gorm:"size:255;index" json:"project_id,omitempty"`
-	Metadata        string    `gorm:"type:text;default:''" json:"metadata,omitzero"`
-	Scopes          string    `gorm:"type:text;default:''" json:"scopes,omitzero"`
-	RateLimitRpm    int       `gorm:"default:0" json:"rate_limit_rpm,omitzero"`
-	BudgetLimit     float64   `gorm:"default:0" json:"budget_limit,omitzero"`
-	BudgetUsed      float64   `gorm:"not null;default:0" json:"budget_used"`
-	BudgetCurrency  string    `gorm:"size:3;default:'USD'" json:"budget_currency"`
-	BudgetResetType string    `gorm:"size:20;default:''" json:"budget_reset_type,omitzero"`
-	BudgetResetAt   time.Time `json:"budget_reset_at,omitzero"`
-	IsActive        bool      `gorm:"not null;default:true;index" json:"is_active"`
-	ExpiresAt       time.Time `json:"expires_at,omitzero"`
-	LastUsedAt      time.Time `json:"last_used_at,omitzero"`
-	CreatedAt       time.Time `gorm:"not null;autoCreateTime" json:"created_at"`
-	UpdatedAt       time.Time `gorm:"not null;autoUpdateTime" json:"updated_at"`
+	ID              uint       `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name            string     `gorm:"not null;size:255" json:"name"`
+	KeyHash         string     `gorm:"uniqueIndex;not null;size:64" json:"-"`
+	KeyPrefix       string     `gorm:"not null;index;size:12" json:"key_prefix"`
+	OrganizationID  string     `gorm:"size:255;index;default:''" json:"organization_id,omitempty"`
+	UserID          string     `gorm:"size:255;index;default:''" json:"user_id,omitempty"`
+	ProjectID       *string    `gorm:"size:255;index" json:"project_id,omitempty"`
+	Metadata        *string    `gorm:"type:text" json:"metadata,omitzero"`
+	Scopes          *string    `gorm:"type:text" json:"scopes,omitzero"`
+	RateLimitRpm    *int       `gorm:"default:null" json:"rate_limit_rpm,omitzero"`
+	BudgetLimit     *float64   `gorm:"default:null" json:"budget_limit,omitzero"`
+	BudgetUsed      float64    `gorm:"not null;default:0" json:"budget_used"`
+	BudgetCurrency  string     `gorm:"size:3;default:'USD'" json:"budget_currency"`
+	BudgetResetType *string    `gorm:"size:20" json:"budget_reset_type,omitzero"`
+	BudgetResetAt   *time.Time `json:"budget_reset_at,omitzero"`
+	IsActive        bool       `gorm:"not null;default:true;index" json:"is_active"`
+	ExpiresAt       *time.Time `json:"expires_at,omitzero"`
+	LastUsedAt      *time.Time `json:"last_used_at,omitzero"`
+	CreatedAt       time.Time  `gorm:"not null;autoCreateTime" json:"created_at"`
+	UpdatedAt       time.Time  `gorm:"not null;autoUpdateTime" json:"updated_at"`
 }
 
 type APIKeyConfig struct {
@@ -35,41 +35,41 @@ type APIKeyConfig struct {
 }
 
 type APIKeyCreateRequest struct {
-	Name            string    `json:"name" validate:"required,min=1,max=255"`
-	OrganizationID  string    `json:"organization_id,omitempty"`
-	UserID          string    `json:"user_id,omitempty"`
-	ProjectID       *string   `json:"project_id,omitempty"`
-	Metadata        string    `json:"metadata,omitzero"`
-	Scopes          []string  `json:"scopes,omitzero"`
-	RateLimitRpm    int       `json:"rate_limit_rpm,omitzero"`
-	BudgetLimit     float64   `json:"budget_limit,omitzero"`
-	BudgetCurrency  string    `json:"budget_currency,omitzero"`
-	BudgetResetType string    `json:"budget_reset_type,omitzero"`
-	ExpiresAt       time.Time `json:"expires_at,omitzero"`
+	Name            string     `json:"name" validate:"required,min=1,max=255"`
+	OrganizationID  string     `json:"organization_id,omitempty"`
+	UserID          string     `json:"user_id,omitempty"`
+	ProjectID       *string    `json:"project_id,omitempty"`
+	Metadata        *string    `json:"metadata,omitzero"`
+	Scopes          []string   `json:"scopes,omitzero"`
+	RateLimitRpm    *int       `json:"rate_limit_rpm,omitzero"`
+	BudgetLimit     *float64   `json:"budget_limit,omitzero"`
+	BudgetCurrency  *string    `json:"budget_currency,omitzero"`
+	BudgetResetType *string    `json:"budget_reset_type,omitzero"`
+	ExpiresAt       *time.Time `json:"expires_at,omitzero"`
 }
 
 type APIKeyResponse struct {
-	ID              uint      `json:"id"`
-	Name            string    `json:"name"`
-	Key             string    `json:"key,omitzero"`
-	KeyPrefix       string    `json:"key_prefix"`
-	OrganizationID  string    `json:"organization_id,omitempty"`
-	UserID          string    `json:"user_id,omitempty"`
-	ProjectID       *string   `json:"project_id,omitempty"`
-	Metadata        string    `json:"metadata,omitzero"`
-	Scopes          string    `json:"scopes,omitzero"`
-	RateLimitRpm    int       `json:"rate_limit_rpm,omitzero"`
-	BudgetLimit     float64   `json:"budget_limit,omitzero"`
-	BudgetUsed      float64   `json:"budget_used"`
-	BudgetRemaining float64   `json:"budget_remaining,omitzero"`
-	BudgetCurrency  string    `json:"budget_currency,omitzero"`
-	BudgetResetType string    `json:"budget_reset_type,omitzero"`
-	BudgetResetAt   time.Time `json:"budget_reset_at,omitzero"`
-	IsActive        bool      `json:"is_active"`
-	ExpiresAt       time.Time `json:"expires_at,omitzero"`
-	LastUsedAt      time.Time `json:"last_used_at,omitzero"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID              uint       `json:"id"`
+	Name            string     `json:"name"`
+	Key             *string    `json:"key,omitzero"`
+	KeyPrefix       string     `json:"key_prefix"`
+	OrganizationID  string     `json:"organization_id,omitempty"`
+	UserID          string     `json:"user_id,omitempty"`
+	ProjectID       *string    `json:"project_id,omitempty"`
+	Metadata        *string    `json:"metadata,omitzero"`
+	Scopes          *string    `json:"scopes,omitzero"`
+	RateLimitRpm    *int       `json:"rate_limit_rpm,omitzero"`
+	BudgetLimit     *float64   `json:"budget_limit,omitzero"`
+	BudgetUsed      float64    `json:"budget_used"`
+	BudgetRemaining *float64   `json:"budget_remaining,omitzero"`
+	BudgetCurrency  *string    `json:"budget_currency,omitzero"`
+	BudgetResetType *string    `json:"budget_reset_type,omitzero"`
+	BudgetResetAt   *time.Time `json:"budget_reset_at,omitzero"`
+	IsActive        bool       `json:"is_active"`
+	ExpiresAt       *time.Time `json:"expires_at,omitzero"`
+	LastUsedAt      *time.Time `json:"last_used_at,omitzero"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 const (
@@ -80,24 +80,24 @@ const (
 )
 
 type APIKeyUsage struct {
-	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	APIKeyID     uint      `gorm:"not null;index" json:"api_key_id"`
-	Endpoint     string    `gorm:"size:100;index;default:''" json:"endpoint"`
-	Provider     string    `gorm:"size:50;default:''" json:"provider"`
-	Model        string    `gorm:"size:100;default:''" json:"model"`
-	TokensInput  int       `gorm:"default:0" json:"tokens_input"`
-	TokensOutput int       `gorm:"default:0" json:"tokens_output"`
-	TokensTotal  int       `gorm:"default:0" json:"tokens_total"`
-	Cost         float64   `gorm:"default:0" json:"cost"`
-	Currency     string    `gorm:"size:3;default:'USD'" json:"currency"`
-	StatusCode   int       `gorm:"default:0" json:"status_code"`
-	LatencyMs    int       `gorm:"default:0" json:"latency_ms"`
-	Metadata     string    `gorm:"type:text;default:''" json:"metadata,omitzero"`
-	RequestID    string    `gorm:"size:100;index;default:''" json:"request_id,omitzero"`
-	UserAgent    string    `gorm:"size:255;default:''" json:"user_agent,omitzero"`
-	IPAddress    string    `gorm:"size:45;default:''" json:"ip_address,omitzero"`
-	ErrorMessage string    `gorm:"type:text;default:''" json:"error_message,omitzero"`
-	CreatedAt    time.Time `gorm:"not null;autoCreateTime;index" json:"created_at"`
+	ID           uint      `gorm:"primaryKey;autoIncrement;column=id" json:"id"`
+	APIKeyID     uint      `gorm:"not null;index;column=api_key_id" json:"api_key_id"`
+	Endpoint     *string   `gorm:"size:100;index;column=endpoint" json:"endpoint,omitzero"`
+	Provider     *string   `gorm:"size:50;column=provider" json:"provider,omitzero"`
+	Model        *string   `gorm:"size:100;column=model" json:"model,omitzero"`
+	TokensInput  int       `gorm:"default:0;column=tokens_input" json:"tokens_input"`
+	TokensOutput int       `gorm:"default:0;column=tokens_output" json:"tokens_output"`
+	TokensTotal  int       `gorm:"default:0;column=tokens_total" json:"tokens_total"`
+	Cost         float64   `gorm:"default:0;column=cost" json:"cost"`
+	Currency     string    `gorm:"size:3;default:'USD';column=currency" json:"currency"`
+	StatusCode   int       `gorm:"default:0;column=status_code" json:"status_code"`
+	LatencyMs    int       `gorm:"default:0;column=latency_ms" json:"latency_ms"`
+	Metadata     *string   `gorm:"type:text;column=metadata" json:"metadata,omitzero"`
+	RequestID    *string   `gorm:"size:100;index;column=request_id" json:"request_id,omitzero"`
+	UserAgent    *string   `gorm:"size:255;column=user_agent" json:"user_agent,omitzero"`
+	IPAddress    *string   `gorm:"size:45;column=ip_address" json:"ip_address,omitzero"`
+	ErrorMessage *string   `gorm:"type:text;column=error_message" json:"error_message,omitzero"`
+	CreatedAt    time.Time `gorm:"not null;autoCreateTime;index;column=created_at" json:"created_at"`
 }
 
 func (APIKeyUsage) TableName() string {
@@ -144,19 +144,19 @@ type CreditTransaction struct {
 	Type                  CreditTransactionType `gorm:"not null;index;size:20" json:"type"`
 	Amount                float64               `gorm:"not null" json:"amount"`
 	BalanceAfter          float64               `gorm:"not null" json:"balance_after"`
-	Description           string                `gorm:"type:text;default:''" json:"description,omitempty"`
-	Metadata              string                `gorm:"type:text;default:''" json:"metadata,omitzero"`
-	StripePaymentIntentID string                `gorm:"index;size:100;default:''" json:"stripe_payment_intent_id,omitempty"`
-	StripeSessionID       string                `gorm:"size:100;default:''" json:"stripe_session_id,omitempty"`
-	APIKeyID              uint                  `gorm:"index;default:0" json:"api_key_id,omitzero"`
-	APIUsageID            uint                  `gorm:"index;default:0" json:"api_usage_id,omitzero"`
+	Description           *string               `gorm:"type:text" json:"description,omitempty"`
+	Metadata              *string               `gorm:"type:text" json:"metadata,omitzero"`
+	StripePaymentIntentID *string               `gorm:"index;size:100" json:"stripe_payment_intent_id,omitempty"`
+	StripeSessionID       *string               `gorm:"size:100" json:"stripe_session_id,omitempty"`
+	APIKeyID              *uint                 `gorm:"index" json:"api_key_id,omitzero"`
+	APIUsageID            *uint                 `gorm:"index" json:"api_usage_id,omitzero"`
 	CreatedAt             time.Time             `gorm:"not null;autoCreateTime;index" json:"created_at"`
 }
 
 type CreditPackage struct {
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name          string    `gorm:"not null;size:100" json:"name"`
-	Description   string    `gorm:"type:text;default:''" json:"description,omitempty"`
+	Description   *string   `gorm:"type:text" json:"description,omitempty"`
 	CreditAmount  float64   `gorm:"not null" json:"credit_amount"`
 	Price         float64   `gorm:"not null" json:"price"`
 	StripePriceID string    `gorm:"uniqueIndex;not null;size:100" json:"stripe_price_id"`
@@ -168,20 +168,20 @@ type RecordUsageParams struct {
 	APIKeyID       uint
 	OrganizationID string
 	UserID         string
-	Endpoint       string
-	Provider       string
-	Model          string
+	Endpoint       *string
+	Provider       *string
+	Model          *string
 	TokensInput    int
 	TokensOutput   int
 	Cost           float64
 	Currency       string
 	StatusCode     int
 	LatencyMs      int
-	Metadata       string
-	RequestID      string
-	UserAgent      string
-	IPAddress      string
-	ErrorMessage   string
+	Metadata       *string
+	RequestID      *string
+	UserAgent      *string
+	IPAddress      *string
+	ErrorMessage   *string
 }
 
 type PeriodStats struct {
@@ -196,10 +196,10 @@ type DeductCreditsParams struct {
 	OrganizationID string
 	UserID         string
 	Amount         float64
-	Description    string
-	Metadata       string
-	APIKeyID       uint
-	APIUsageID     uint
+	Description    *string
+	Metadata       *string
+	APIKeyID       *uint
+	APIUsageID     *uint
 }
 
 type AddCreditsParams struct {
@@ -207,8 +207,8 @@ type AddCreditsParams struct {
 	UserID                string
 	Amount                float64
 	Type                  CreditTransactionType
-	Description           string
-	Metadata              string
-	StripePaymentIntentID string
-	StripeSessionID       string
+	Description           *string
+	Metadata              *string
+	StripePaymentIntentID *string
+	StripeSessionID       *string
 }

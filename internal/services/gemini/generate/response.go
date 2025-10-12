@@ -60,18 +60,19 @@ func (rs *ResponseService) HandleNonStreamingResponse(
 			inputTokens := int(adaptiveResp.UsageMetadata.PromptTokenCount)
 			outputTokens := int(adaptiveResp.UsageMetadata.CandidatesTokenCount)
 
+			endpoint := "/v1beta/models/:model:generateContent"
 			usageParams := models.RecordUsageParams{
 				APIKeyID:       apiKey.ID,
 				OrganizationID: apiKey.OrganizationID,
 				UserID:         apiKey.UserID,
-				Endpoint:       "/v1beta/models/:model:generateContent",
-				Provider:       provider,
-				Model:          model,
+				Endpoint:       &endpoint,
+				Provider:       &provider,
+				Model:          &model,
 				TokensInput:    inputTokens,
 				TokensOutput:   outputTokens,
 				Cost:           usage.CalculateCost(provider, model, inputTokens, outputTokens),
 				StatusCode:     200,
-				RequestID:      requestID,
+				RequestID:      &requestID,
 			}
 
 			_, err := rs.usageService.RecordUsage(c.UserContext(), usageParams)

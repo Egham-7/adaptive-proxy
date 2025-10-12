@@ -77,14 +77,14 @@ func (p *AnthropicChunkProcessor) Process(ctx context.Context, data []byte) ([]b
 			APIKeyID:       p.apiKey.ID,
 			OrganizationID: p.apiKey.OrganizationID,
 			UserID:         p.apiKey.UserID,
-			Endpoint:       p.endpoint,
-			Provider:       p.provider,
-			Model:          p.model,
+			Endpoint:       &p.endpoint,
+			Provider:       &p.provider,
+			Model:          &p.model,
 			TokensInput:    inputTokens,
 			TokensOutput:   outputTokens,
 			Cost:           usage.CalculateCost(p.provider, p.model, inputTokens, outputTokens),
 			StatusCode:     200,
-			RequestID:      p.requestID,
+			RequestID:      &p.requestID,
 		}
 
 		go func(params models.RecordUsageParams, reqID string) {

@@ -135,11 +135,11 @@ func (m *APIKeyMiddleware) setLocals(c *fiber.Ctx, apiKey *models.APIKey) {
 	c.Locals("api_key", apiKey)
 	c.Locals("api_key_id", apiKey.ID)
 
-	if apiKey.Scopes != "" {
-		c.Locals("api_key_scopes", strings.Split(apiKey.Scopes, ","))
+	if apiKey.Scopes != nil && *apiKey.Scopes != "" {
+		c.Locals("api_key_scopes", strings.Split(*apiKey.Scopes, ","))
 	}
 
-	if apiKey.RateLimitRpm != 0 {
-		c.Locals("api_key_rate_limit", apiKey.RateLimitRpm)
+	if apiKey.RateLimitRpm != nil && *apiKey.RateLimitRpm != 0 {
+		c.Locals("api_key_rate_limit", *apiKey.RateLimitRpm)
 	}
 }

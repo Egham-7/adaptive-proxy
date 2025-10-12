@@ -22,15 +22,57 @@ func (s *APIKeyService) AutoMigrate() error {
 	return s.db.AutoMigrate(&models.APIKey{})
 }
 
+func apiKeyToResponse(k *models.APIKey) models.APIKeyResponse {
+	var budgetRemaining *float64
+	if k.BudgetLimit != nil {
+		remaining := CalculateBudgetRemaining(*k.BudgetLimit, k.BudgetUsed)
+		budgetRemaining = &remaining
+	}
+
+	var budgetCurrency *string
+	if k.BudgetCurrency != "" {
+		budgetCurrency = &k.BudgetCurrency
+	}
+
+	return models.APIKeyResponse{
+		ID:              k.ID,
+		Name:            k.Name,
+		KeyPrefix:       k.KeyPrefix,
+		OrganizationID:  k.OrganizationID,
+		UserID:          k.UserID,
+		ProjectID:       k.ProjectID,
+		Metadata:        k.Metadata,
+		Scopes:          k.Scopes,
+		RateLimitRpm:    k.RateLimitRpm,
+		BudgetLimit:     k.BudgetLimit,
+		BudgetUsed:      k.BudgetUsed,
+		BudgetRemaining: budgetRemaining,
+		BudgetCurrency:  budgetCurrency,
+		BudgetResetType: k.BudgetResetType,
+		BudgetResetAt:   k.BudgetResetAt,
+		IsActive:        k.IsActive,
+		ExpiresAt:       k.ExpiresAt,
+		LastUsedAt:      k.LastUsedAt,
+		CreatedAt:       k.CreatedAt,
+		UpdatedAt:       k.UpdatedAt,
+	}
+}
+
 func (s *APIKeyService) CreateAPIKey(ctx context.Context, req *models.APIKeyCreateRequest) (*models.APIKeyResponse, error) {
 	key, err := GenerateAPIKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate API key: %w", err)
 	}
 
-	budgetCurrency := req.BudgetCurrency
-	if budgetCurrency == "" {
-		budgetCurrency = "USD"
+	budgetCurrency := "USD"
+	if req.BudgetCurrency != nil && *req.BudgetCurrency != "" {
+		budgetCurrency = *req.BudgetCurrency
+	}
+
+	var scopes *string
+	if len(req.Scopes) > 0 {
+		scopesStr := strings.Join(req.Scopes, ",")
+		scopes = &scopesStr
 	}
 
 	apiKey := &models.APIKey{
@@ -41,7 +83,7 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, req *models.APIKeyCrea
 		UserID:          req.UserID,
 		ProjectID:       req.ProjectID,
 		Metadata:        req.Metadata,
-		Scopes:          strings.Join(req.Scopes, ","),
+		Scopes:          scopes,
 		RateLimitRpm:    req.RateLimitRpm,
 		BudgetLimit:     req.BudgetLimit,
 		BudgetUsed:      0,
@@ -51,19 +93,31 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, req *models.APIKeyCrea
 		ExpiresAt:       req.ExpiresAt,
 	}
 
-	if req.BudgetResetType != "" && req.BudgetResetType != models.BudgetResetNone {
+	if req.BudgetResetType != nil && *req.BudgetResetType != "" && *req.BudgetResetType != models.BudgetResetNone {
 		now := time.Now()
-		apiKey.BudgetResetAt = calculateNextReset(now, req.BudgetResetType)
+		resetAt := calculateNextReset(now, *req.BudgetResetType)
+		apiKey.BudgetResetAt = &resetAt
 	}
 
 	if err := s.db.WithContext(ctx).Create(apiKey).Error; err != nil {
 		return nil, fmt.Errorf("failed to create API key: %w", err)
 	}
 
+	var budgetRemaining *float64
+	if apiKey.BudgetLimit != nil {
+		remaining := CalculateBudgetRemaining(*apiKey.BudgetLimit, apiKey.BudgetUsed)
+		budgetRemaining = &remaining
+	}
+
+	var budgetCurrencyPtr *string
+	if apiKey.BudgetCurrency != "" {
+		budgetCurrencyPtr = &apiKey.BudgetCurrency
+	}
+
 	return &models.APIKeyResponse{
 		ID:              apiKey.ID,
 		Name:            apiKey.Name,
-		Key:             key,
+		Key:             &key,
 		KeyPrefix:       apiKey.KeyPrefix,
 		OrganizationID:  apiKey.OrganizationID,
 		UserID:          apiKey.UserID,
@@ -73,8 +127,8 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, req *models.APIKeyCrea
 		RateLimitRpm:    apiKey.RateLimitRpm,
 		BudgetLimit:     apiKey.BudgetLimit,
 		BudgetUsed:      apiKey.BudgetUsed,
-		BudgetRemaining: CalculateBudgetRemaining(apiKey.BudgetLimit, apiKey.BudgetUsed),
-		BudgetCurrency:  apiKey.BudgetCurrency,
+		BudgetRemaining: budgetRemaining,
+		BudgetCurrency:  budgetCurrencyPtr,
 		BudgetResetType: apiKey.BudgetResetType,
 		BudgetResetAt:   apiKey.BudgetResetAt,
 		IsActive:        apiKey.IsActive,
@@ -99,7 +153,7 @@ func (s *APIKeyService) ValidateAPIKey(ctx context.Context, key string) (*models
 		return nil, fmt.Errorf("failed to validate API key: %w", err)
 	}
 
-	if !apiKey.ExpiresAt.IsZero() && apiKey.ExpiresAt.Before(time.Now()) {
+	if apiKey.ExpiresAt != nil && !apiKey.ExpiresAt.IsZero() && apiKey.ExpiresAt.Before(time.Now()) {
 		return nil, fmt.Errorf("API key has expired")
 	}
 
@@ -129,29 +183,8 @@ func (s *APIKeyService) ListAPIKeys(ctx context.Context, limit, offset int) ([]m
 	}
 
 	responses := make([]models.APIKeyResponse, len(apiKeys))
-	for i, k := range apiKeys {
-		responses[i] = models.APIKeyResponse{
-			ID:              k.ID,
-			Name:            k.Name,
-			KeyPrefix:       k.KeyPrefix,
-			OrganizationID:  k.OrganizationID,
-			UserID:          k.UserID,
-			ProjectID:       k.ProjectID,
-			Metadata:        k.Metadata,
-			Scopes:          k.Scopes,
-			RateLimitRpm:    k.RateLimitRpm,
-			BudgetLimit:     k.BudgetLimit,
-			BudgetUsed:      k.BudgetUsed,
-			BudgetRemaining: CalculateBudgetRemaining(k.BudgetLimit, k.BudgetUsed),
-			BudgetCurrency:  k.BudgetCurrency,
-			BudgetResetType: k.BudgetResetType,
-			BudgetResetAt:   k.BudgetResetAt,
-			IsActive:        k.IsActive,
-			ExpiresAt:       k.ExpiresAt,
-			LastUsedAt:      k.LastUsedAt,
-			CreatedAt:       k.CreatedAt,
-			UpdatedAt:       k.UpdatedAt,
-		}
+	for i := range apiKeys {
+		responses[i] = apiKeyToResponse(&apiKeys[i])
 	}
 
 	return responses, total, nil
@@ -177,29 +210,8 @@ func (s *APIKeyService) ListAPIKeysByUserID(ctx context.Context, userID string, 
 	}
 
 	responses := make([]models.APIKeyResponse, len(apiKeys))
-	for i, k := range apiKeys {
-		responses[i] = models.APIKeyResponse{
-			ID:              k.ID,
-			Name:            k.Name,
-			KeyPrefix:       k.KeyPrefix,
-			OrganizationID:  k.OrganizationID,
-			UserID:          k.UserID,
-			ProjectID:       k.ProjectID,
-			Metadata:        k.Metadata,
-			Scopes:          k.Scopes,
-			RateLimitRpm:    k.RateLimitRpm,
-			BudgetLimit:     k.BudgetLimit,
-			BudgetUsed:      k.BudgetUsed,
-			BudgetRemaining: CalculateBudgetRemaining(k.BudgetLimit, k.BudgetUsed),
-			BudgetCurrency:  k.BudgetCurrency,
-			BudgetResetType: k.BudgetResetType,
-			BudgetResetAt:   k.BudgetResetAt,
-			IsActive:        k.IsActive,
-			ExpiresAt:       k.ExpiresAt,
-			LastUsedAt:      k.LastUsedAt,
-			CreatedAt:       k.CreatedAt,
-			UpdatedAt:       k.UpdatedAt,
-		}
+	for i := range apiKeys {
+		responses[i] = apiKeyToResponse(&apiKeys[i])
 	}
 
 	return responses, total, nil
@@ -225,29 +237,8 @@ func (s *APIKeyService) ListAPIKeysByProjectID(ctx context.Context, projectID st
 	}
 
 	responses := make([]models.APIKeyResponse, len(apiKeys))
-	for i, k := range apiKeys {
-		responses[i] = models.APIKeyResponse{
-			ID:              k.ID,
-			Name:            k.Name,
-			KeyPrefix:       k.KeyPrefix,
-			OrganizationID:  k.OrganizationID,
-			UserID:          k.UserID,
-			ProjectID:       k.ProjectID,
-			Metadata:        k.Metadata,
-			Scopes:          k.Scopes,
-			RateLimitRpm:    k.RateLimitRpm,
-			BudgetLimit:     k.BudgetLimit,
-			BudgetUsed:      k.BudgetUsed,
-			BudgetRemaining: CalculateBudgetRemaining(k.BudgetLimit, k.BudgetUsed),
-			BudgetCurrency:  k.BudgetCurrency,
-			BudgetResetType: k.BudgetResetType,
-			BudgetResetAt:   k.BudgetResetAt,
-			IsActive:        k.IsActive,
-			ExpiresAt:       k.ExpiresAt,
-			LastUsedAt:      k.LastUsedAt,
-			CreatedAt:       k.CreatedAt,
-			UpdatedAt:       k.UpdatedAt,
-		}
+	for i := range apiKeys {
+		responses[i] = apiKeyToResponse(&apiKeys[i])
 	}
 
 	return responses, total, nil
@@ -263,28 +254,8 @@ func (s *APIKeyService) GetAPIKey(ctx context.Context, id uint) (*models.APIKeyR
 		return nil, fmt.Errorf("failed to get API key: %w", err)
 	}
 
-	return &models.APIKeyResponse{
-		ID:              apiKey.ID,
-		Name:            apiKey.Name,
-		KeyPrefix:       apiKey.KeyPrefix,
-		OrganizationID:  apiKey.OrganizationID,
-		UserID:          apiKey.UserID,
-		ProjectID:       apiKey.ProjectID,
-		Metadata:        apiKey.Metadata,
-		Scopes:          apiKey.Scopes,
-		RateLimitRpm:    apiKey.RateLimitRpm,
-		BudgetLimit:     apiKey.BudgetLimit,
-		BudgetUsed:      apiKey.BudgetUsed,
-		BudgetRemaining: CalculateBudgetRemaining(apiKey.BudgetLimit, apiKey.BudgetUsed),
-		BudgetCurrency:  apiKey.BudgetCurrency,
-		BudgetResetType: apiKey.BudgetResetType,
-		BudgetResetAt:   apiKey.BudgetResetAt,
-		IsActive:        apiKey.IsActive,
-		ExpiresAt:       apiKey.ExpiresAt,
-		LastUsedAt:      apiKey.LastUsedAt,
-		CreatedAt:       apiKey.CreatedAt,
-		UpdatedAt:       apiKey.UpdatedAt,
-	}, nil
+	response := apiKeyToResponse(&apiKey)
+	return &response, nil
 }
 
 func (s *APIKeyService) RevokeAPIKey(ctx context.Context, id uint) error {

@@ -59,18 +59,20 @@ func (rs *ResponseService) HandleNonStreamingResponse(
 			inputTokens := int(adaptiveResponse.Usage.InputTokens)
 			outputTokens := int(adaptiveResponse.Usage.OutputTokens)
 
+			endpoint := "/v1/messages"
+			model := string(message.Model)
 			usageParams := models.RecordUsageParams{
 				APIKeyID:       apiKey.ID,
 				OrganizationID: apiKey.OrganizationID,
 				UserID:         apiKey.UserID,
-				Endpoint:       "/v1/messages",
-				Provider:       provider,
-				Model:          string(message.Model),
+				Endpoint:       &endpoint,
+				Provider:       &provider,
+				Model:          &model,
 				TokensInput:    inputTokens,
 				TokensOutput:   outputTokens,
 				Cost:           usage.CalculateCost(provider, string(message.Model), inputTokens, outputTokens),
 				StatusCode:     200,
-				RequestID:      requestID,
+				RequestID:      &requestID,
 			}
 
 			_, err := rs.usageService.RecordUsage(c.UserContext(), usageParams)

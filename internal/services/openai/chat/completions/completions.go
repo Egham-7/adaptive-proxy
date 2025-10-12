@@ -367,18 +367,20 @@ func (cs *CompletionService) handleNonStreamingCompletion(
 			inputTokens := int(resp.Usage.PromptTokens)
 			outputTokens := int(resp.Usage.CompletionTokens)
 
+			endpoint := "/v1/chat/completions"
+			model := string(resp.Model)
 			usageParams := models.RecordUsageParams{
 				APIKeyID:       apiKey.ID,
 				OrganizationID: apiKey.OrganizationID,
 				UserID:         apiKey.UserID,
-				Endpoint:       "/v1/chat/completions",
-				Provider:       providerName,
-				Model:          string(resp.Model),
+				Endpoint:       &endpoint,
+				Provider:       &providerName,
+				Model:          &model,
 				TokensInput:    inputTokens,
 				TokensOutput:   outputTokens,
 				Cost:           usage.CalculateCost(providerName, string(resp.Model), inputTokens, outputTokens),
 				StatusCode:     200,
-				RequestID:      requestID,
+				RequestID:      &requestID,
 			}
 
 			_, err := cs.usageService.RecordUsage(c.UserContext(), usageParams)

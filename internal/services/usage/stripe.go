@@ -104,24 +104,29 @@ func (s *StripeService) handleCheckoutSessionCompleted(ctx context.Context, even
 
 	// Add credits to organization
 	metadataMap := map[string]any{
-		"stripe_session_id":         session.ID,
-		"stripe_payment_intent_id":  session.PaymentIntent,
-		"amount_paid":               float64(session.AmountTotal) / 100.0, // Convert from cents
+		"stripe_session_id":        session.ID,
+		"stripe_payment_intent_id": session.PaymentIntent,
+		"amount_paid":              float64(session.AmountTotal) / 100.0, // Convert from cents
 	}
 	metadataJSON, err := json.Marshal(metadataMap)
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
+	description := fmt.Sprintf("Credit purchase via Stripe (%.2f credits)", creditAmount)
+	metadataStr := string(metadataJSON)
+	paymentIntentID := session.PaymentIntent.ID
+	sessionID := session.ID
+
 	_, err = s.creditsService.AddCredits(ctx, models.AddCreditsParams{
 		OrganizationID:        organizationID,
 		UserID:                userID,
 		Amount:                creditAmount,
 		Type:                  models.CreditTransactionPurchase,
-		Description:           fmt.Sprintf("Credit purchase via Stripe (%.2f credits)", creditAmount),
-		Metadata:              string(metadataJSON),
-		StripePaymentIntentID: session.PaymentIntent.ID,
-		StripeSessionID:       session.ID,
+		Description:           &description,
+		Metadata:              &metadataStr,
+		StripePaymentIntentID: &paymentIntentID,
+		StripeSessionID:       &sessionID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to add credits: %w", err)

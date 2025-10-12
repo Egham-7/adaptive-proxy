@@ -28,11 +28,11 @@ func (s *Service) CheckBudgetLimit(ctx context.Context, apiKeyID uint) (bool, *m
 		return false, nil, fmt.Errorf("failed to get API key: %w", err)
 	}
 
-	if apiKey.BudgetLimit == 0 {
+	if apiKey.BudgetLimit == nil || *apiKey.BudgetLimit == 0 {
 		return true, &apiKey, nil
 	}
 
-	if apiKey.BudgetUsed >= apiKey.BudgetLimit {
+	if apiKey.BudgetUsed >= *apiKey.BudgetLimit {
 		return false, &apiKey, nil
 	}
 
@@ -69,7 +69,11 @@ func (s *Service) ProcessScheduledBudgetResets(ctx context.Context) error {
 	}
 
 	for _, apiKey := range apiKeys {
-		nextReset := s.calculateNextReset(now, apiKey.BudgetResetType)
+		var resetType string
+		if apiKey.BudgetResetType != nil {
+			resetType = *apiKey.BudgetResetType
+		}
+		nextReset := s.calculateNextReset(now, resetType)
 
 		if err := s.db.WithContext(ctx).
 			Model(&models.APIKey{}).
