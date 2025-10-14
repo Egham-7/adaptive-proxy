@@ -208,7 +208,7 @@ func (s *APIKeyService) ListAPIKeysByUserID(ctx context.Context, userID string, 
 	return responses, total, nil
 }
 
-func (s *APIKeyService) ListAPIKeysByProjectID(ctx context.Context, projectID string, limit, offset int) ([]models.APIKeyResponse, int64, error) {
+func (s *APIKeyService) ListAPIKeysByProjectID(ctx context.Context, projectID uint, limit, offset int) ([]models.APIKeyResponse, int64, error) {
 	var apiKeys []models.APIKey
 	var total int64
 

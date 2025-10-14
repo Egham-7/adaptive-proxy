@@ -3,6 +3,7 @@ package builder
 import (
 	"github.com/Egham-7/adaptive-proxy/internal/config"
 	"github.com/Egham-7/adaptive-proxy/internal/models"
+	pkgmodels "github.com/Egham-7/adaptive-proxy/pkg/models"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -10,8 +11,8 @@ type Builder struct {
 	cfg              *config.Config
 	middlewares      []fiber.Handler
 	enabledEndpoints map[string]bool
-	rateLimitConfig  *models.RateLimitConfig
-	timeoutConfig    *models.TimeoutConfig
+	rateLimitConfig  *pkgmodels.RateLimitConfig
+	timeoutConfig    *pkgmodels.TimeoutConfig
 }
 
 func New() *Builder {
@@ -60,10 +61,10 @@ func (b *Builder) GetEnabledEndpoints() map[string]bool {
 	return b.enabledEndpoints
 }
 
-func (b *Builder) GetRateLimitConfig() *models.RateLimitConfig {
+func (b *Builder) GetRateLimitConfig() *pkgmodels.RateLimitConfig {
 	return b.rateLimitConfig
 }
 
-func (b *Builder) GetTimeoutConfig() *models.TimeoutConfig {
+func (b *Builder) GetTimeoutConfig() *pkgmodels.TimeoutConfig {
 	return b.timeoutConfig
 }

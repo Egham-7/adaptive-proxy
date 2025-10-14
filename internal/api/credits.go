@@ -4,17 +4,20 @@ import (
 	"encoding/json"
 	"strconv"
 
+	"github.com/Egham-7/adaptive-proxy/internal/services/auth"
 	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 	"github.com/gofiber/fiber/v2"
 )
 
 type CreditsHandler struct {
 	creditsService *usage.CreditsService
+	authProvider   auth.AuthProvider
 }
 
-func NewCreditsHandler(creditsService *usage.CreditsService) *CreditsHandler {
+func NewCreditsHandler(creditsService *usage.CreditsService, authProvider auth.AuthProvider) *CreditsHandler {
 	return &CreditsHandler{
 		creditsService: creditsService,
+		authProvider:   authProvider,
 	}
 }
 
@@ -33,6 +36,27 @@ func (h *CreditsHandler) GetBalance(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "organization_id is required",
 		})
+	}
+
+	if h.authProvider != nil {
+		userID, ok := auth.GetUserID(c)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "authentication required",
+			})
+		}
+
+		hasAccess, err := h.authProvider.ValidateOrganizationAccess(c.Context(), userID, organizationID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "failed to validate organization access",
+			})
+		}
+		if !hasAccess {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "access denied: you do not have permission to view credits for this organization",
+			})
+		}
 	}
 
 	credit, err := h.creditsService.GetOrganizationCredit(c.Context(), organizationID)
@@ -71,6 +95,27 @@ func (h *CreditsHandler) CheckCredits(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
 		})
+	}
+
+	if h.authProvider != nil {
+		userID, ok := auth.GetUserID(c)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "authentication required",
+			})
+		}
+
+		hasAccess, err := h.authProvider.ValidateOrganizationAccess(c.Context(), userID, req.OrganizationID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "failed to validate organization access",
+			})
+		}
+		if !hasAccess {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "access denied: you do not have permission to check credits for this organization",
+			})
+		}
 	}
 
 	credit, err := h.creditsService.GetOrganizationCredit(c.Context(), req.OrganizationID)
@@ -122,6 +167,27 @@ func (h *CreditsHandler) GetTransactionHistory(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "organization_id is required",
 		})
+	}
+
+	if h.authProvider != nil {
+		userID, ok := auth.GetUserID(c)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "authentication required",
+			})
+		}
+
+		hasAccess, err := h.authProvider.ValidateOrganizationAccess(c.Context(), userID, organizationID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "failed to validate organization access",
+			})
+		}
+		if !hasAccess {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "access denied: you do not have permission to view transactions for this organization",
+			})
+		}
 	}
 
 	limit := 20

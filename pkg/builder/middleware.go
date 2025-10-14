@@ -3,12 +3,12 @@ package builder
 import (
 	"time"
 
-	"github.com/Egham-7/adaptive-proxy/internal/models"
+	pkgmodels "github.com/Egham-7/adaptive-proxy/pkg/models"
 	"github.com/gofiber/fiber/v2"
 )
 
 func (b *Builder) WithRateLimit(max int, expiration time.Duration, keyFunc ...func(*fiber.Ctx) string) *Builder {
-	cfg := &models.RateLimitConfig{
+	cfg := &pkgmodels.RateLimitConfig{
 		Max:        max,
 		Expiration: expiration,
 	}
@@ -20,7 +20,7 @@ func (b *Builder) WithRateLimit(max int, expiration time.Duration, keyFunc ...fu
 }
 
 func (b *Builder) WithTimeout(timeout time.Duration) *Builder {
-	b.timeoutConfig = &models.TimeoutConfig{
+	b.timeoutConfig = &pkgmodels.TimeoutConfig{
 		Timeout: timeout,
 	}
 	return b
