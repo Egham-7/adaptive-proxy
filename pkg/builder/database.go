@@ -14,13 +14,13 @@ func (b *Builder) WithAPIKeyManagement(cfg models.APIKeyConfig) *Builder {
 	if len(cfg.HeaderNames) == 0 {
 		cfg.HeaderNames = []string{"X-API-Key"}
 	}
-	b.cfg.Server.APIKeyConfig = &cfg
+	b.cfg.APIKey = &cfg
 	return b
 }
 
 func (b *Builder) EnableAPIKeyAuth() *Builder {
 	cfg := usage.DefaultAPIKeyConfig()
 	cfg.Enabled = true
-	b.cfg.Server.APIKeyConfig = &cfg
+	b.cfg.APIKey = &cfg
 	return b
 }

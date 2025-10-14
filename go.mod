@@ -5,12 +5,14 @@ go 1.25.0
 require (
 	github.com/anthropics/anthropic-sdk-go v1.13.0
 	github.com/botirk38/semanticcache v0.4.0
+	github.com/clerk/clerk-sdk-go/v2 v2.4.2
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/joho/godotenv v1.5.1
 	github.com/openai/openai-go/v2 v2.7.1
 	github.com/redis/go-redis/v9 v9.14.0
 	github.com/stripe/stripe-go/v81 v81.4.0
+	github.com/svix/svix-webhooks v1.77.0
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/valyala/fasthttp v1.67.0
 	golang.org/x/sync v0.17.0
@@ -50,6 +52,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.1 // indirect
+	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-sql-driver/mysql v1.9.3 // indirect
