@@ -32,7 +32,7 @@ type Project struct {
 	CreatedAt      time.Time     `gorm:"not null;autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time     `gorm:"not null;autoUpdateTime" json:"updated_at"`
 
-	Members []ProjectMember `gorm:"foreignKey:ProjectID" json:"members,omitempty"`
+	Members []ProjectMember `gorm:"foreignKey:ProjectID" json:"members"`
 }
 
 func (Project) TableName() string {
@@ -81,6 +81,10 @@ type AddProjectMemberRequest struct {
 	Role   ProjectMemberRole `json:"role" validate:"required,oneof=owner admin member"`
 }
 
+type UpdateProjectMemberRoleRequest struct {
+	Role string `json:"role" validate:"required,oneof=admin member"`
+}
+
 type ProjectResponse struct {
 	ID             uint            `json:"id"`
 	Name           string          `json:"name"`
@@ -88,7 +92,7 @@ type ProjectResponse struct {
 	Status         ProjectStatus   `json:"status"`
 	Progress       int             `json:"progress"`
 	OrganizationID string          `json:"organization_id"`
-	Members        []ProjectMember `json:"members,omitempty"`
+	Members        []ProjectMember `json:"members"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
 }

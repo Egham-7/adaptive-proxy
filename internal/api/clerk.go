@@ -43,9 +43,9 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *fiber.Ctx) error {
 	}
 
 	headers := make(map[string][]string)
-	c.Request().Header.VisitAll(func(key, value []byte) {
+	for key, value := range c.Request().Header.All() {
 		headers[string(key)] = []string{string(value)}
-	})
+	}
 
 	wh, err := svix.NewWebhook(h.webhookSecret)
 	if err != nil {

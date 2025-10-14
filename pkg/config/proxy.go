@@ -521,7 +521,7 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 					app.Post("/webhooks/clerk", clerkWebhookHandler.HandleWebhook)
 				}
 
-				if err := db.DB.AutoMigrate(&models.Project{}, &models.ProjectMember{}); err != nil {
+				if err := db.AutoMigrate(&models.Project{}, &models.ProjectMember{}); err != nil {
 					fmt.Fprintf(os.Stderr, "Warning: failed to migrate project tables: %v\n", err)
 				}
 			} else if cfg.Auth.DatabaseConfig != nil {
@@ -537,7 +537,7 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 
 				app.Use("/admin/*", authMiddleware.RequireAuth())
 
-				if err := db.DB.AutoMigrate(&models.User{}, &models.Organization{}, &models.OrganizationMember{}, &models.Project{}, &models.ProjectMember{}); err != nil {
+				if err := db.AutoMigrate(&models.User{}, &models.Organization{}, &models.OrganizationMember{}, &models.Project{}, &models.ProjectMember{}); err != nil {
 					fmt.Fprintf(os.Stderr, "Warning: failed to migrate multi-tenancy tables: %v\n", err)
 				}
 			}
@@ -555,6 +555,7 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 				projectsGroup.Post("/:id/members", projectsHandler.AddMember)
 				projectsGroup.Delete("/:id/members/:user_id", projectsHandler.RemoveMember)
 				projectsGroup.Get("/:id/members", projectsHandler.ListMembers)
+				projectsGroup.Patch("/:id/members/:user_id", projectsHandler.UpdateMemberRole)
 
 				if cfg.Auth.DatabaseConfig != nil {
 					adminSvc := admin.NewService(db.DB, authProvider)

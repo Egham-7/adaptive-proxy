@@ -16,6 +16,7 @@ var (
 	ErrDuplicateProjectID = errors.New("project with this ID already exists")
 	ErrMemberNotFound     = errors.New("project member not found")
 	ErrCannotRemoveOwner  = errors.New("cannot remove project owner")
+	ErrCannotChangeOwner  = errors.New("cannot change owner role")
 	ErrInvalidRole        = errors.New("invalid role specified")
 )
 
@@ -73,6 +74,12 @@ func (s *Service) CreateProject(ctx context.Context, userID string, req *models.
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// Reload the project with members
+	err = s.db.WithContext(ctx).Preload("Members").First(project, project.ID).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to reload project: %w", err)
 	}
 
 	return project, nil
@@ -222,6 +229,42 @@ func (s *Service) RemoveMember(ctx context.Context, userID string, projectID uin
 	return nil
 }
 
+func (s *Service) UpdateMemberRole(ctx context.Context, userID string, projectID uint, targetUserID, role string) (*models.ProjectMember, error) {
+	hasAccess, err := s.authProvider.ValidateProjectAccess(ctx, userID, projectID, auth.RoleAdmin)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate project access: %w", err)
+	}
+	if !hasAccess {
+		return nil, ErrUnauthorized
+	}
+
+	memberRole := models.ProjectMemberRole(role)
+	if memberRole != models.ProjectMemberRoleAdmin && memberRole != models.ProjectMemberRoleMember {
+		return nil, ErrInvalidRole
+	}
+
+	var member models.ProjectMember
+	err = s.db.WithContext(ctx).Where("project_id = ? AND user_id = ?", projectID, targetUserID).First(&member).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrMemberNotFound
+		}
+		return nil, fmt.Errorf("failed to fetch member: %w", err)
+	}
+
+	if member.Role == models.ProjectMemberRoleOwner {
+		return nil, ErrCannotChangeOwner
+	}
+
+	member.Role = memberRole
+	err = s.db.WithContext(ctx).Save(&member).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to update member role: %w", err)
+	}
+
+	return &member, nil
+}
+
 func (s *Service) ListProjects(ctx context.Context, userID, organizationID string) ([]models.Project, error) {
 	hasAccess, err := s.authProvider.ValidateOrganizationAccess(ctx, userID, organizationID)
 	if err != nil {
@@ -232,7 +275,7 @@ func (s *Service) ListProjects(ctx context.Context, userID, organizationID strin
 	}
 
 	var projects []models.Project
-	err = s.db.WithContext(ctx).Where("organization_id = ?", organizationID).Find(&projects).Error
+	err = s.db.WithContext(ctx).Preload("Members").Where("organization_id = ?", organizationID).Find(&projects).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
 	}

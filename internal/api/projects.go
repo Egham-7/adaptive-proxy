@@ -362,3 +362,65 @@ func (h *ProjectsHandler) ListMembers(c *fiber.Ctx) error {
 		"total":   len(project.Members),
 	})
 }
+
+func (h *ProjectsHandler) UpdateMemberRole(c *fiber.Ctx) error {
+	userID, ok := auth.GetUserID(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "authentication required",
+		})
+	}
+	projectIDStr := c.Params("id")
+	targetUserID := c.Params("user_id")
+
+	if projectIDStr == "" || targetUserID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "project_id and user_id are required",
+		})
+	}
+
+	projectID, err := strconv.ParseUint(projectIDStr, 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid project_id",
+		})
+	}
+
+	var req struct {
+		Role string `json:"role"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	member, err := h.projectsService.UpdateMemberRole(c.Context(), userID, uint(projectID), targetUserID, req.Role)
+	if err != nil {
+		if errors.Is(err, projects.ErrUnauthorized) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "You don't have admin access to this project",
+			})
+		}
+		if errors.Is(err, projects.ErrMemberNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Member not found",
+			})
+		}
+		if errors.Is(err, projects.ErrCannotChangeOwner) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Cannot change owner role",
+			})
+		}
+		if errors.Is(err, projects.ErrInvalidRole) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid role. Must be 'admin' or 'member'",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update member role",
+		})
+	}
+
+	return c.JSON(member)
+}
