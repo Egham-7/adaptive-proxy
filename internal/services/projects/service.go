@@ -71,7 +71,6 @@ func (s *Service) CreateProject(ctx context.Context, userID string, req *models.
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

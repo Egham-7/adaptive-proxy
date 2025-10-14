@@ -70,7 +70,6 @@ func (p *DatabaseAuthProvider) GetUserOrganizations(ctx context.Context, userID 
 		Model(&models.Organization{}).
 		Where("owner_id = ?", userID).
 		Pluck("id", &orgIDs).Error
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to query owner orgs: %w", err)
 	}
@@ -80,7 +79,6 @@ func (p *DatabaseAuthProvider) GetUserOrganizations(ctx context.Context, userID 
 		Model(&models.OrganizationMember{}).
 		Where("user_id = ?", userID).
 		Pluck("organization_id", &memberOrgIDs).Error
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to query member orgs: %w", err)
 	}
