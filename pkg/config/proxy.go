@@ -12,11 +12,15 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/api"
 	geminiapi "github.com/Egham-7/adaptive-proxy/internal/api/gemini"
 	"github.com/Egham-7/adaptive-proxy/internal/config"
+	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/admin"
+	"github.com/Egham-7/adaptive-proxy/internal/services/auth"
 	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
 	"github.com/Egham-7/adaptive-proxy/internal/services/database"
 	"github.com/Egham-7/adaptive-proxy/internal/services/middleware"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
 	"github.com/Egham-7/adaptive-proxy/internal/services/openai/chat/completions"
+	"github.com/Egham-7/adaptive-proxy/internal/services/projects"
 	"github.com/Egham-7/adaptive-proxy/internal/services/select_model"
 	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 	"github.com/Egham-7/adaptive-proxy/pkg/builder"
@@ -341,7 +345,7 @@ func setupMiddleware(app *fiber.App, cfg *config.Config, p *Proxy) {
 
 	// Usage tracking middleware (if services are initialized)
 	if p.usageTracker != nil {
-		app.Use(p.usageTracker.TrackUsage())
+		app.Use(p.usageTracker.EnforceUsageLimits())
 	}
 
 	// Profiler (dev only)
@@ -475,40 +479,112 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	// Create completion service
 	var usageSvc *usage.Service
 
-	// Initialize API key and usage services if database is available
-	var apiKeyMiddleware *middleware.APIKeyMiddleware
 	var creditsSvc *usage.CreditsService
 	var stripeSvc *usage.StripeService
-	if db != nil && cfg.Server.APIKeyConfig != nil && cfg.Server.APIKeyConfig.Enabled {
+	if db != nil && cfg.APIKey != nil && cfg.APIKey.Enabled {
 		apiKeySvc := usage.NewAPIKeyService(db.DB)
 
-		creditsEnabled := cfg.Server.StripeConfig != nil
+		creditsEnabled := cfg.Billing != nil
 
 		if creditsEnabled {
 			creditsSvc = usage.NewCreditsService(db.DB)
 
-			if cfg.Server.StripeConfig.SecretKey != "" {
+			if cfg.Billing.SecretKey != "" {
 				stripeSvc = usage.NewStripeService(usage.StripeConfig{
-					SecretKey:     cfg.Server.StripeConfig.SecretKey,
-					WebhookSecret: cfg.Server.StripeConfig.WebhookSecret,
+					SecretKey:     cfg.Billing.SecretKey,
+					WebhookSecret: cfg.Billing.WebhookSecret,
 				}, creditsSvc)
 			}
 		}
 
 		usageSvc = usage.NewService(db.DB, creditsSvc)
-		apiKeyMiddleware = middleware.NewAPIKeyMiddleware(apiKeySvc, usageSvc, cfg.Server.APIKeyConfig)
 
-		if cfg.Server.APIKeyConfig.RequireForAll {
-			app.Use(apiKeyMiddleware.RequireAPIKey())
-		} else if !cfg.Server.APIKeyConfig.AllowAnonymous {
-			app.Use(apiKeyMiddleware.Authenticate())
+		var authProvider auth.AuthProvider
+		var authMiddleware *middleware.AuthMiddleware
+		if cfg.Auth != nil {
+			if cfg.Auth.ClerkConfig != nil && (cfg.Auth.ClerkConfig.SecretKey != "" || cfg.Auth.ClerkConfig.WebhookSecret != "") {
+				authProvider = auth.NewClerkAuthProvider(cfg.Auth.ClerkConfig.SecretKey, db.DB)
+
+				authMiddleware = middleware.NewAuthMiddleware(authProvider, apiKeySvc, usageSvc, &middleware.AuthMiddlewareConfig{
+					Enabled:        true,
+					AllowAnonymous: false,
+					ClerkSecretKey: cfg.Auth.ClerkConfig.SecretKey,
+					HeaderNames:    []string{"Authorization"},
+					SkipPaths:      []string{"/health", "/webhooks"},
+					EnableAPIKeys:  true,
+				})
+
+				app.Use("/admin/*", authMiddleware.RequireAuth())
+
+				if creditsSvc != nil {
+					clerkWebhookHandler := api.NewClerkWebhookHandler(cfg.Auth.ClerkConfig.WebhookSecret, creditsSvc)
+					app.Post("/webhooks/clerk", clerkWebhookHandler.HandleWebhook)
+				}
+
+				if err := db.AutoMigrate(&models.Project{}, &models.ProjectMember{}); err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: failed to migrate project tables: %v\n", err)
+				}
+			} else if cfg.Auth.DatabaseConfig != nil {
+				authProvider = auth.NewDatabaseAuthProvider(db.DB)
+
+				authMiddleware = middleware.NewAuthMiddleware(authProvider, apiKeySvc, usageSvc, &middleware.AuthMiddlewareConfig{
+					Enabled:        true,
+					AllowAnonymous: false,
+					HeaderNames:    []string{"Authorization"},
+					SkipPaths:      []string{"/health", "/webhooks"},
+					EnableAPIKeys:  true,
+				})
+
+				app.Use("/admin/*", authMiddleware.RequireAuth())
+
+				if err := db.AutoMigrate(&models.User{}, &models.Organization{}, &models.OrganizationMember{}, &models.Project{}, &models.ProjectMember{}); err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: failed to migrate multi-tenancy tables: %v\n", err)
+				}
+			}
+
+			if authProvider != nil {
+				projectsSvc := projects.NewService(db.DB, authProvider)
+				projectsHandler := api.NewProjectsHandler(projectsSvc)
+
+				projectsGroup := app.Group("/admin/projects")
+				projectsGroup.Post("/", projectsHandler.CreateProject)
+				projectsGroup.Get("/:id", projectsHandler.GetProject)
+				projectsGroup.Get("/organization/:org_id", projectsHandler.ListProjects)
+				projectsGroup.Patch("/:id", projectsHandler.UpdateProject)
+				projectsGroup.Delete("/:id", projectsHandler.DeleteProject)
+				projectsGroup.Post("/:id/members", projectsHandler.AddMember)
+				projectsGroup.Delete("/:id/members/:user_id", projectsHandler.RemoveMember)
+				projectsGroup.Get("/:id/members", projectsHandler.ListMembers)
+				projectsGroup.Patch("/:id/members/:user_id", projectsHandler.UpdateMemberRole)
+
+				if cfg.Auth.DatabaseConfig != nil {
+					adminSvc := admin.NewService(db.DB, authProvider)
+					adminHandler := api.NewAdminHandler(adminSvc)
+
+					orgGroup := app.Group("/admin/organizations")
+					orgGroup.Post("/", adminHandler.CreateOrganization)
+					orgGroup.Get("/:id", adminHandler.GetOrganization)
+					orgGroup.Get("/", adminHandler.ListOrganizations)
+					orgGroup.Patch("/:id", adminHandler.UpdateOrganization)
+					orgGroup.Delete("/:id", adminHandler.DeleteOrganization)
+					orgGroup.Post("/:id/members", adminHandler.AddOrganizationMember)
+					orgGroup.Delete("/:id/members/:user_id", adminHandler.RemoveOrganizationMember)
+					orgGroup.Get("/:id/members", adminHandler.ListOrganizationMembers)
+
+					userGroup := app.Group("/admin/users")
+					userGroup.Post("/", adminHandler.CreateUser)
+					userGroup.Get("/:id", adminHandler.GetUser)
+					userGroup.Patch("/:id", adminHandler.UpdateUser)
+					userGroup.Delete("/:id", adminHandler.DeleteUser)
+				}
+			}
 		}
 
-		apiKeyHandler := api.NewAPIKeyHandler(apiKeySvc, usageSvc, creditsEnabled)
+		apiKeyHandler := api.NewAPIKeyHandler(apiKeySvc, usageSvc, creditsEnabled, authProvider)
 		apiKeyHandler.RegisterRoutes(app, "/admin/api-keys")
 
 		if creditsEnabled && creditsSvc != nil {
-			creditsHandler := api.NewCreditsHandler(creditsSvc)
+			creditsHandler := api.NewCreditsHandler(creditsSvc, authProvider)
 			creditsGroup := app.Group("/admin/credits")
 			creditsGroup.Get("/balance/:organization_id", creditsHandler.GetBalance)
 			creditsGroup.Post("/check", creditsHandler.CheckCredits)
@@ -516,10 +592,8 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 
 			if stripeSvc != nil {
 				stripeHandler := api.NewStripeHandler(stripeSvc)
-				// Webhook endpoint (no auth required - Stripe signature verified)
 				app.Post("/webhooks/stripe", stripeHandler.HandleWebhook)
 
-				// Admin Stripe routes
 				stripeGroup := app.Group("/admin/stripe")
 				stripeGroup.Post("/checkout-session", stripeHandler.CreateCheckoutSession)
 			}
@@ -645,14 +719,14 @@ func runDatabaseMigrations(db *database.DB) error {
 }
 
 func initializeServices(db *database.DB, cfg *config.Config) *proxyServices {
-	if db == nil || cfg.Server.APIKeyConfig == nil || !cfg.Server.APIKeyConfig.Enabled {
+	if db == nil || cfg.APIKey == nil || !cfg.APIKey.Enabled {
 		return nil
 	}
 
 	apiKeySvc := usage.NewAPIKeyService(db.DB)
 
 	var creditsSvc *usage.CreditsService
-	creditsEnabled := cfg.Server.StripeConfig != nil
+	creditsEnabled := cfg.Billing != nil
 	if creditsEnabled {
 		creditsSvc = usage.NewCreditsService(db.DB)
 	}

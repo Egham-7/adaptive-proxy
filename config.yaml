@@ -7,14 +7,28 @@ server:
   allowed_origins: "${ALLOWED_ORIGINS:-http://localhost:3000}"
   environment: "${ENV:-development}"
   log_level: "${LOG_LEVEL:-info}"
-  api_key:
-    enabled: true
-    header_name: "X-API-Key"
-    require_for_all: ${API_KEY_REQUIRE_FOR_ALL:-false}
-    allow_anonymous: ${API_KEY_ALLOW_ANONYMOUS:-true}
-  stripe:
-    secret_key: "${STRIPE_SECRET_KEY}"
-    webhook_secret: "${STRIPE_WEBHOOK_SECRET}"
+
+# Authentication configuration
+# Supports two modes: Clerk (for SaaS) or Database (for self-hosted)
+auth:
+  # Clerk authentication (recommended for SaaS deployments)
+  clerk:
+    secret_key: "${CLERK_SECRET_KEY}"
+    webhook_secret: "${CLERK_WEBHOOK_SECRET}"
+  
+  # Database authentication (for self-hosted multi-tenancy)
+  # database:
+  #   database_url: "${DATABASE_URL}"
+
+# Billing configuration
+billing:
+  secret_key: "${STRIPE_SECRET_KEY}"
+  webhook_secret: "${STRIPE_WEBHOOK_SECRET}"
+
+# API Key configuration
+api_key:
+  enabled: true
+  header_name: "X-API-Key"
 
 # Endpoint-specific provider configurations
 endpoints:

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/auth"
 	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 	"github.com/gofiber/fiber/v2"
 )
@@ -13,17 +14,32 @@ type APIKeyHandler struct {
 	service        *usage.APIKeyService
 	budgetService  *usage.Service
 	creditsEnabled bool
+	authProvider   auth.AuthProvider
 }
 
-func NewAPIKeyHandler(service *usage.APIKeyService, budgetService *usage.Service, creditsEnabled bool) *APIKeyHandler {
+func NewAPIKeyHandler(service *usage.APIKeyService, budgetService *usage.Service, creditsEnabled bool, authProvider auth.AuthProvider) *APIKeyHandler {
 	return &APIKeyHandler{
 		service:        service,
 		budgetService:  budgetService,
 		creditsEnabled: creditsEnabled,
+		authProvider:   authProvider,
 	}
 }
 
 func (h *APIKeyHandler) CreateAPIKey(c *fiber.Ctx) error {
+	userID, ok := auth.GetUserID(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "authentication required",
+		})
+	}
+
+	if auth.IsAPIKeyAuth(c) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "API keys cannot create other API keys. Please use Clerk authentication.",
+		})
+	}
+
 	var req models.APIKeyCreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -42,10 +58,24 @@ func (h *APIKeyHandler) CreateAPIKey(c *fiber.Ctx) error {
 				"error": "user_id is required when credits are enabled",
 			})
 		}
-		if req.ProjectID == "" {
+		if req.ProjectID == 0 {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "project_id is required when credits are enabled",
 			})
+		}
+
+		if h.authProvider != nil {
+			hasProjectAccess, err := h.authProvider.ValidateProjectAccess(c.Context(), userID, req.ProjectID, auth.RoleMember)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "failed to validate project access",
+				})
+			}
+			if !hasProjectAccess {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "access denied: you do not have permission to create API keys for this project",
+				})
+			}
 		}
 	}
 
@@ -64,6 +94,21 @@ func (h *APIKeyHandler) ListAPIKeysByUserID(c *fiber.Ctx) error {
 	limit := c.QueryInt("limit", 50)
 	offset := c.QueryInt("offset", 0)
 
+	if h.authProvider != nil {
+		authUserID, ok := auth.GetUserID(c)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "authentication required",
+			})
+		}
+
+		if authUserID != userID {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "access denied: you can only list your own API keys",
+			})
+		}
+	}
+
 	apiKeys, total, err := h.service.ListAPIKeysByUserID(c.Context(), userID, limit, offset)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -80,11 +125,38 @@ func (h *APIKeyHandler) ListAPIKeysByUserID(c *fiber.Ctx) error {
 }
 
 func (h *APIKeyHandler) ListAPIKeysByProjectID(c *fiber.Ctx) error {
-	projectID := c.Params("project_id")
+	projectIDParam := c.Params("project_id")
+	projectID, err := strconv.ParseUint(projectIDParam, 10, 32)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid project ID",
+		})
+	}
 	limit := c.QueryInt("limit", 50)
 	offset := c.QueryInt("offset", 0)
 
-	apiKeys, total, err := h.service.ListAPIKeysByProjectID(c.Context(), projectID, limit, offset)
+	if h.authProvider != nil {
+		userID, ok := auth.GetUserID(c)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "authentication required",
+			})
+		}
+
+		hasAccess, err := h.authProvider.ValidateProjectAccess(c.Context(), userID, uint(projectID), auth.RoleMember)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "failed to validate project access",
+			})
+		}
+		if !hasAccess {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "access denied: you do not have permission to view API keys for this project",
+			})
+		}
+	}
+
+	apiKeys, total, err := h.service.ListAPIKeysByProjectID(c.Context(), uint(projectID), limit, offset)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
@@ -114,6 +186,27 @@ func (h *APIKeyHandler) GetAPIKey(c *fiber.Ctx) error {
 		})
 	}
 
+	if h.authProvider != nil && apiKey.ProjectID != 0 {
+		userID, ok := auth.GetUserID(c)
+		if !ok {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "authentication required",
+			})
+		}
+
+		hasAccess, err := h.authProvider.ValidateProjectAccess(c.Context(), userID, apiKey.ProjectID, auth.RoleMember)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "failed to validate project access",
+			})
+		}
+		if !hasAccess {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "access denied: you do not have permission to view this API key",
+			})
+		}
+	}
+
 	return c.JSON(apiKey)
 }
 
@@ -123,6 +216,42 @@ func (h *APIKeyHandler) RevokeAPIKey(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid API key ID",
 		})
+	}
+
+	userID, ok := auth.GetUserID(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "authentication required",
+		})
+	}
+
+	if auth.IsAPIKeyAuth(c) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "API keys cannot revoke other API keys. Please use Clerk authentication.",
+		})
+	}
+
+	if h.authProvider != nil {
+		apiKey, err := h.service.GetAPIKey(c.Context(), uint(id))
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		if apiKey.ProjectID != 0 {
+			hasAccess, err := h.authProvider.ValidateProjectAccess(c.Context(), userID, apiKey.ProjectID, auth.RoleAdmin)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "failed to validate project access",
+				})
+			}
+			if !hasAccess {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "access denied: you do not have permission to revoke this API key",
+				})
+			}
+		}
 	}
 
 	if err := h.service.RevokeAPIKey(c.Context(), uint(id)); err != nil {
@@ -144,6 +273,42 @@ func (h *APIKeyHandler) DeleteAPIKey(c *fiber.Ctx) error {
 		})
 	}
 
+	userID, ok := auth.GetUserID(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "authentication required",
+		})
+	}
+
+	if auth.IsAPIKeyAuth(c) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "API keys cannot delete other API keys. Please use Clerk authentication.",
+		})
+	}
+
+	if h.authProvider != nil {
+		apiKey, err := h.service.GetAPIKey(c.Context(), uint(id))
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		if apiKey.ProjectID != 0 {
+			hasAccess, err := h.authProvider.ValidateProjectAccess(c.Context(), userID, apiKey.ProjectID, auth.RoleAdmin)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "failed to validate project access",
+				})
+			}
+			if !hasAccess {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "access denied: you do not have permission to delete this API key",
+				})
+			}
+		}
+	}
+
 	if err := h.service.DeleteAPIKey(c.Context(), uint(id)); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
@@ -159,6 +324,42 @@ func (h *APIKeyHandler) UpdateAPIKey(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid API key ID",
 		})
+	}
+
+	userID, ok := auth.GetUserID(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "authentication required",
+		})
+	}
+
+	if auth.IsAPIKeyAuth(c) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "API keys cannot update other API keys. Please use Clerk authentication.",
+		})
+	}
+
+	if h.authProvider != nil {
+		apiKey, err := h.service.GetAPIKey(c.Context(), uint(id))
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		if apiKey.ProjectID != 0 {
+			hasAccess, err := h.authProvider.ValidateProjectAccess(c.Context(), userID, apiKey.ProjectID, auth.RoleAdmin)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "failed to validate project access",
+				})
+			}
+			if !hasAccess {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "access denied: you do not have permission to update this API key",
+				})
+			}
+		}
 	}
 
 	var updates map[string]any
@@ -205,6 +406,36 @@ func (h *APIKeyHandler) GetUsage(c *fiber.Ctx) error {
 		})
 	}
 
+	if h.authProvider != nil {
+		apiKey, err := h.service.GetAPIKey(c.Context(), uint(id))
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		if apiKey.ProjectID != 0 {
+			userID, ok := auth.GetUserID(c)
+			if !ok {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "authentication required",
+				})
+			}
+
+			hasAccess, err := h.authProvider.ValidateProjectAccess(c.Context(), userID, apiKey.ProjectID, auth.RoleMember)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "failed to validate project access",
+				})
+			}
+			if !hasAccess {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "access denied: you do not have permission to view usage for this API key",
+				})
+			}
+		}
+	}
+
 	limit := c.QueryInt("limit", 100)
 	usage, err := h.budgetService.GetRecentUsage(c.Context(), uint(id), limit)
 	if err != nil {
@@ -225,6 +456,36 @@ func (h *APIKeyHandler) GetStats(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid API key ID",
 		})
+	}
+
+	if h.authProvider != nil {
+		apiKey, err := h.service.GetAPIKey(c.Context(), uint(id))
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		if apiKey.ProjectID != 0 {
+			userID, ok := auth.GetUserID(c)
+			if !ok {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "authentication required",
+				})
+			}
+
+			hasAccess, err := h.authProvider.ValidateProjectAccess(c.Context(), userID, apiKey.ProjectID, auth.RoleMember)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "failed to validate project access",
+				})
+			}
+			if !hasAccess {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "access denied: you do not have permission to view stats for this API key",
+				})
+			}
+		}
 	}
 
 	startTimeStr := c.Query("start_time")
@@ -274,6 +535,36 @@ func (h *APIKeyHandler) ResetBudget(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid API key ID",
 		})
+	}
+
+	if h.authProvider != nil {
+		apiKey, err := h.service.GetAPIKey(c.Context(), uint(id))
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		if apiKey.ProjectID != 0 {
+			userID, ok := auth.GetUserID(c)
+			if !ok {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "authentication required",
+				})
+			}
+
+			hasAccess, err := h.authProvider.ValidateProjectAccess(c.Context(), userID, apiKey.ProjectID, auth.RoleAdmin)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "failed to validate project access",
+				})
+			}
+			if !hasAccess {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "access denied: you do not have permission to reset budget for this API key",
+				})
+			}
+		}
 	}
 
 	if err := h.budgetService.ResetBudget(c.Context(), uint(id)); err != nil {

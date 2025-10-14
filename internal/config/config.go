@@ -26,6 +26,9 @@ type Config struct {
 	Fallback    models.FallbackConfig     `yaml:"fallback"`
 	ModelRouter *models.ModelRouterConfig `yaml:"model_router,omitempty"`
 	Database    *models.DatabaseConfig    `yaml:"database,omitempty"`
+	Auth        *models.AuthConfig        `yaml:"auth,omitempty"`
+	Billing     *models.StripeConfig      `yaml:"billing,omitempty"`
+	APIKey      *models.APIKeyConfig      `yaml:"api_key,omitempty"`
 }
 
 // LoadFromFile loads configuration from a YAML file with environment variable substitution
