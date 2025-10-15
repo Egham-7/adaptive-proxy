@@ -7,6 +7,7 @@ import (
 
 	"github.com/Egham-7/adaptive-proxy/internal/models"
 	"github.com/Egham-7/adaptive-proxy/internal/services/auth"
+	"github.com/Egham-7/adaptive-proxy/internal/services/organizations"
 	"gorm.io/gorm"
 )
 
@@ -21,14 +22,16 @@ var (
 )
 
 type Service struct {
-	db           *gorm.DB
-	authProvider auth.AuthProvider
+	db                   *gorm.DB
+	authProvider         auth.AuthProvider
+	organizationsService *organizations.Service
 }
 
 func NewService(db *gorm.DB, authProvider auth.AuthProvider) *Service {
 	return &Service{
-		db:           db,
-		authProvider: authProvider,
+		db:                   db,
+		authProvider:         authProvider,
+		organizationsService: organizations.NewService(db),
 	}
 }
 
@@ -143,6 +146,10 @@ func (s *Service) DeleteOrganization(ctx context.Context, userID, organizationID
 	}
 
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := s.organizationsService.DeleteOrganizationData(ctx, organizationID); err != nil {
+			return err
+		}
+
 		if err := tx.Where("organization_id = ?", organizationID).Delete(&models.OrganizationMember{}).Error; err != nil {
 			return fmt.Errorf("failed to delete members: %w", err)
 		}
