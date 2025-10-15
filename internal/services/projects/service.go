@@ -275,7 +275,11 @@ func (s *Service) ListProjects(ctx context.Context, userID, organizationID strin
 	}
 
 	var projects []models.Project
-	err = s.db.WithContext(ctx).Preload("Members").Where("organization_id = ?", organizationID).Find(&projects).Error
+	err = s.db.WithContext(ctx).
+		Preload("Members").
+		Joins("JOIN project_members ON project_members.project_id = projects.id").
+		Where("projects.organization_id = ? AND project_members.user_id = ?", organizationID, userID).
+		Find(&projects).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
 	}
