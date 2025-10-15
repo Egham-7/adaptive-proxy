@@ -20,6 +20,7 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/services/middleware"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
 	"github.com/Egham-7/adaptive-proxy/internal/services/openai/chat/completions"
+	"github.com/Egham-7/adaptive-proxy/internal/services/organizations"
 	"github.com/Egham-7/adaptive-proxy/internal/services/projects"
 	"github.com/Egham-7/adaptive-proxy/internal/services/select_model"
 	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
@@ -517,8 +518,12 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 				app.Use("/admin/*", authMiddleware.RequireAuth())
 
 				if creditsSvc != nil {
-					clerkWebhookHandler := api.NewClerkWebhookHandler(cfg.Auth.ClerkConfig.WebhookSecret, creditsSvc)
+					organizationsSvc := organizations.NewService(db.DB)
+					clerkWebhookHandler := api.NewClerkWebhookHandler(cfg.Auth.ClerkConfig.WebhookSecret, creditsSvc, organizationsSvc)
 					app.Post("/webhooks/clerk", clerkWebhookHandler.HandleWebhook)
+
+					orgGroup := app.Group("/admin/organizations")
+					orgGroup.Delete("/:id", clerkWebhookHandler.DeleteOrganizationData)
 				}
 
 				if err := db.AutoMigrate(&models.Project{}, &models.ProjectMember{}); err != nil {
