@@ -77,14 +77,6 @@ func (s *Service) CreateProject(ctx context.Context, userID string, req *models.
 		return nil, err
 	}
 
-	// Add all organization admins to the project (excluding the creator who is already owner)
-	// This runs outside the transaction as it's best-effort and shouldn't block project creation
-	// If this fails, the lazy authorization will still grant access
-	if err := s.AddOrgAdminsToProject(ctx, project.ID, req.OrganizationID, userID); err != nil {
-		// Log warning but don't fail project creation - lazy auth will handle it
-		fmt.Printf("Warning: failed to add org admins to project %d: %v\n", project.ID, err)
-	}
-
 	// Reload the project with members
 	err = s.db.WithContext(ctx).Preload("Members").First(project, project.ID).Error
 	if err != nil {
@@ -283,12 +275,26 @@ func (s *Service) ListProjects(ctx context.Context, userID, organizationID strin
 		return nil, ErrUnauthorized
 	}
 
+	// Check if user is org admin - if yes, return ALL organization projects
+	orgRole, err := s.authProvider.GetOrganizationRole(ctx, userID, organizationID)
+	isOrgAdmin := err == nil && orgRole == "org:admin"
+
 	var projects []models.Project
-	err = s.db.WithContext(ctx).
-		Preload("Members").
-		Joins("JOIN project_members ON project_members.project_id = projects.id").
-		Where("projects.organization_id = ? AND project_members.user_id = ?", organizationID, userID).
-		Find(&projects).Error
+	if isOrgAdmin {
+		// Org admin: return all projects in the organization
+		err = s.db.WithContext(ctx).
+			Preload("Members").
+			Where("organization_id = ?", organizationID).
+			Find(&projects).Error
+	} else {
+		// Non-admin: return only projects where user has explicit membership
+		err = s.db.WithContext(ctx).
+			Preload("Members").
+			Joins("JOIN project_members ON project_members.project_id = projects.id").
+			Where("projects.organization_id = ? AND project_members.user_id = ?", organizationID, userID).
+			Find(&projects).Error
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
 	}

@@ -11,6 +11,8 @@ type AuthProvider interface {
 	ValidateProjectAccess(ctx context.Context, userID string, projectID uint, requiredRole Role) (bool, error)
 
 	GetUserOrganizations(ctx context.Context, userID string) ([]string, error)
+
+	GetOrganizationRole(ctx context.Context, userID, organizationID string) (string, error)
 }
 
 type Role string

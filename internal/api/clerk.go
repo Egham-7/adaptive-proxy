@@ -102,24 +102,6 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *fiber.Ctx) error {
 				"error": fmt.Sprintf("Failed to process organization.deleted event: %v", err),
 			})
 		}
-	case "organizationMembership.created":
-		if err := h.handleOrganizationMembershipCreated(c, event.Data); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": fmt.Sprintf("Failed to process organizationMembership.created event: %v", err),
-			})
-		}
-	case "organizationMembership.updated":
-		if err := h.handleOrganizationMembershipUpdated(c, event.Data); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": fmt.Sprintf("Failed to process organizationMembership.updated event: %v", err),
-			})
-		}
-	case "organizationMembership.deleted":
-		if err := h.handleOrganizationMembershipDeleted(c, event.Data); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": fmt.Sprintf("Failed to process organizationMembership.deleted event: %v", err),
-			})
-		}
 	}
 
 	return c.JSON(fiber.Map{
@@ -156,89 +138,6 @@ func (h *ClerkWebhookHandler) handleOrganizationDeleted(c *fiber.Ctx, data json.
 
 	if err := h.organizationsService.DeleteOrganizationData(c.Context(), orgData.ID); err != nil {
 		return fmt.Errorf("failed to delete organization data: %w", err)
-	}
-
-	return nil
-}
-
-func (h *ClerkWebhookHandler) handleOrganizationMembershipCreated(c *fiber.Ctx, data json.RawMessage) error {
-	var membershipData ClerkOrganizationMembershipData
-	if err := json.Unmarshal(data, &membershipData); err != nil {
-		return fmt.Errorf("failed to unmarshal organization membership data: %w", err)
-	}
-
-	// Only process if the new member is an org admin
-	if membershipData.Role != "org:admin" {
-		// Not an admin, no action needed
-		return nil
-	}
-
-	userID := membershipData.PublicUserData.UserID
-	organizationID := membershipData.Organization.ID
-
-	// Add the new org admin to all existing projects in the organization as owner
-	// This uses the projects service which has access to the DB
-	// Note: We pass the projects service through the handler during initialization
-	if h.projectsService != nil {
-		err := h.projectsService.AddUserToAllOrgProjects(c.Context(), userID, organizationID, models.ProjectMemberRoleOwner)
-		if err != nil {
-			// Log error but don't fail the webhook - lazy auth will handle it
-			fmt.Printf("Warning: failed to add org admin %s to projects in org %s: %v\n", userID, organizationID, err)
-		}
-	}
-
-	return nil
-}
-
-func (h *ClerkWebhookHandler) handleOrganizationMembershipUpdated(c *fiber.Ctx, data json.RawMessage) error {
-	var membershipData ClerkOrganizationMembershipData
-	if err := json.Unmarshal(data, &membershipData); err != nil {
-		return fmt.Errorf("failed to unmarshal organization membership data: %w", err)
-	}
-
-	userID := membershipData.PublicUserData.UserID
-	organizationID := membershipData.Organization.ID
-
-	if h.projectsService == nil {
-		return nil
-	}
-
-	// Check the new role
-	if membershipData.Role == "org:admin" {
-		// Promoted to admin - add to all projects as owner
-		err := h.projectsService.AddUserToAllOrgProjects(c.Context(), userID, organizationID, models.ProjectMemberRoleOwner)
-		if err != nil {
-			// Log error but don't fail the webhook - lazy auth will handle it
-			fmt.Printf("Warning: failed to add promoted admin %s to projects in org %s: %v\n", userID, organizationID, err)
-		}
-	} else {
-		// Demoted from admin to member - remove from all projects (except as owner)
-		err := h.projectsService.RemoveUserFromAllOrgProjects(c.Context(), userID, organizationID)
-		if err != nil {
-			// Log error but don't fail the webhook
-			fmt.Printf("Warning: failed to remove demoted admin %s from projects in org %s: %v\n", userID, organizationID, err)
-		}
-	}
-
-	return nil
-}
-
-func (h *ClerkWebhookHandler) handleOrganizationMembershipDeleted(c *fiber.Ctx, data json.RawMessage) error {
-	var membershipData ClerkOrganizationMembershipData
-	if err := json.Unmarshal(data, &membershipData); err != nil {
-		return fmt.Errorf("failed to unmarshal organization membership data: %w", err)
-	}
-
-	userID := membershipData.PublicUserData.UserID
-	organizationID := membershipData.Organization.ID
-
-	// Remove user from all projects in the organization (except as owner)
-	if h.projectsService != nil {
-		err := h.projectsService.RemoveUserFromAllOrgProjects(c.Context(), userID, organizationID)
-		if err != nil {
-			// Log error but don't fail the webhook
-			fmt.Printf("Warning: failed to remove user %s from projects in org %s: %v\n", userID, organizationID, err)
-		}
 	}
 
 	return nil

@@ -86,3 +86,34 @@ func (p *DatabaseAuthProvider) GetUserOrganizations(ctx context.Context, userID 
 	allOrgIDs := append(orgIDs, memberOrgIDs...)
 	return allOrgIDs, nil
 }
+
+func (p *DatabaseAuthProvider) GetOrganizationRole(ctx context.Context, userID, organizationID string) (string, error) {
+	// Check if user is the organization owner
+	var org models.Organization
+	err := p.db.WithContext(ctx).
+		Where("id = ? AND owner_id = ?", organizationID, userID).
+		First(&org).Error
+
+	if err == nil {
+		return "org:admin", nil
+	}
+
+	if err != gorm.ErrRecordNotFound {
+		return "", fmt.Errorf("database error: %w", err)
+	}
+
+	// Check organization membership
+	var member models.OrganizationMember
+	err = p.db.WithContext(ctx).
+		Where("organization_id = ? AND user_id = ?", organizationID, userID).
+		First(&member).Error
+
+	if err == gorm.ErrRecordNotFound {
+		return "", fmt.Errorf("user is not a member of this organization")
+	}
+	if err != nil {
+		return "", fmt.Errorf("database error: %w", err)
+	}
+
+	return member.Role, nil
+}
