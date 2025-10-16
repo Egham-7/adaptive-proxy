@@ -27,6 +27,7 @@ type GenerateHandler struct {
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker
 	fallbackService *fallback.FallbackService
 	usageService    *usage.Service
+	usageWorker     *usage.Worker
 }
 
 // NewGenerateHandler creates a new GenerateHandler with Gemini-specific services
@@ -35,16 +36,18 @@ func NewGenerateHandler(
 	modelRouter *model_router.ModelRouter,
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker,
 	usageService *usage.Service,
+	usageWorker *usage.Worker,
 ) *GenerateHandler {
 	return &GenerateHandler{
 		cfg:             cfg,
 		requestSvc:      generate.NewRequestService(),
 		generateSvc:     generate.NewGenerateService(),
-		responseSvc:     generate.NewResponseService(modelRouter, usageService),
+		responseSvc:     generate.NewResponseService(modelRouter, usageService, usageWorker),
 		modelRouter:     modelRouter,
 		circuitBreakers: circuitBreakers,
 		fallbackService: fallback.NewFallbackService(cfg),
 		usageService:    usageService,
+		usageWorker:     usageWorker,
 	}
 }
 

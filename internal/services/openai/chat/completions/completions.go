@@ -37,9 +37,10 @@ type CompletionService struct {
 	clientCache     *clientcache.Cache[*openai.Client]
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker
 	usageService    *usage.Service
+	usageWorker     *usage.Worker
 }
 
-func NewCompletionService(cfg *config.Config, responseService *ResponseService, circuitBreakers map[string]*circuitbreaker.CircuitBreaker, usageService *usage.Service) *CompletionService {
+func NewCompletionService(cfg *config.Config, responseService *ResponseService, circuitBreakers map[string]*circuitbreaker.CircuitBreaker, usageService *usage.Service, usageWorker *usage.Worker) *CompletionService {
 	if responseService == nil {
 		panic("NewCompletionService: responseService cannot be nil")
 	}
@@ -53,6 +54,7 @@ func NewCompletionService(cfg *config.Config, responseService *ResponseService, 
 		clientCache:     clientcache.NewCache[*openai.Client](),
 		circuitBreakers: circuitBreakers,
 		usageService:    usageService,
+		usageWorker:     usageWorker,
 	}
 }
 
@@ -268,7 +270,7 @@ func (cs *CompletionService) handleStreamingCompletion(
 	// Get API key from auth context
 	apiKey, _ := auth.GetAPIKey(c)
 
-	err := handlers.HandleOpenAI(c, streamResp, requestID, providerName, cacheSource, model, endpoint, cs.usageService, apiKey)
+	err := handlers.HandleOpenAI(c, streamResp, requestID, providerName, cacheSource, model, endpoint, cs.usageService, apiKey, cs.usageWorker)
 	if err != nil {
 		// Record failure in circuit breaker
 		if cb := cs.circuitBreakers[providerName]; cb != nil {

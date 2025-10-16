@@ -16,13 +16,13 @@ import (
 )
 
 // HandleOpenAI manages OpenAI streaming response using proper layered architecture
-func HandleOpenAI(c *fiber.Ctx, resp *openai_ssestream.Stream[openai.ChatCompletionChunk], requestID, provider, cacheSource, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey) error {
+func HandleOpenAI(c *fiber.Ctx, resp *openai_ssestream.Stream[openai.ChatCompletionChunk], requestID, provider, cacheSource, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey, usageWorker *usage.Worker) error {
 	fiberlog.Infof("[%s] Starting OpenAI stream handling", requestID)
 
 	// Create streaming pipeline - validates stream internally by reading first chunk
 	// If validation fails (429, 500, etc.), error is returned BEFORE HTTP streaming starts
 	// This allows fallback to trigger properly
-	factory := NewStreamFactory()
+	factory := NewStreamFactory(usageWorker)
 	handler, err := factory.CreateOpenAIPipeline(resp, requestID, provider, cacheSource, model, endpoint, usageService, apiKey)
 	if err != nil {
 		fiberlog.Errorf("[%s] Stream validation failed: %v", requestID, err)

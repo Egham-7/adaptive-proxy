@@ -10,7 +10,6 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 
 	"github.com/anthropics/anthropic-sdk-go"
-	fiberlog "github.com/gofiber/fiber/v2/log"
 )
 
 // AnthropicChunkProcessor handles Anthropic-specific format conversion
@@ -22,10 +21,11 @@ type AnthropicChunkProcessor struct {
 	apiKey       *models.APIKey
 	model        string
 	endpoint     string
+	usageWorker  *usage.Worker
 }
 
 // NewAnthropicChunkProcessor creates a new Anthropic chunk processor
-func NewAnthropicChunkProcessor(provider, cacheSource, requestID, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey) *AnthropicChunkProcessor {
+func NewAnthropicChunkProcessor(provider, cacheSource, requestID, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey, usageWorker *usage.Worker) *AnthropicChunkProcessor {
 	return &AnthropicChunkProcessor{
 		provider:     provider,
 		cacheSource:  cacheSource,
@@ -34,6 +34,7 @@ func NewAnthropicChunkProcessor(provider, cacheSource, requestID, model, endpoin
 		apiKey:       apiKey,
 		model:        model,
 		endpoint:     endpoint,
+		usageWorker:  usageWorker,
 	}
 }
 
@@ -69,7 +70,7 @@ func (p *AnthropicChunkProcessor) Process(ctx context.Context, data []byte) ([]b
 	}
 
 	// Check if this is a message_delta event with usage data and record it
-	if adaptiveChunk.Type == "message_delta" && adaptiveChunk.Usage != nil && p.usageService != nil && p.apiKey != nil {
+	if adaptiveChunk.Type == "message_delta" && adaptiveChunk.Usage != nil && p.usageWorker != nil && p.apiKey != nil {
 		inputTokens := int(adaptiveChunk.Usage.InputTokens)
 		outputTokens := int(adaptiveChunk.Usage.OutputTokens)
 
@@ -87,12 +88,7 @@ func (p *AnthropicChunkProcessor) Process(ctx context.Context, data []byte) ([]b
 			RequestID:      p.requestID,
 		}
 
-		go func(params models.RecordUsageParams, reqID string) {
-			_, err := p.usageService.RecordUsage(context.Background(), params)
-			if err != nil {
-				fiberlog.Errorf("[%s] Failed to record streaming usage: %v", reqID, err)
-			}
-		}(usageParams, p.requestID)
+		p.usageWorker.Submit(usageParams, p.requestID)
 	}
 
 	// Marshal to JSON
@@ -101,9 +97,20 @@ func (p *AnthropicChunkProcessor) Process(ctx context.Context, data []byte) ([]b
 		return nil, fmt.Errorf("failed to marshal adaptive chunk: %w", err)
 	}
 
-	// Format as SSE event
-	sseData := fmt.Sprintf("event: %s\ndata: %s\n\n", adaptiveChunk.Type, string(chunkJSON))
-	return []byte(sseData), nil
+	// Format as SSE event - optimized with pre-allocated buffer
+	eventPrefix := []byte("event: ")
+	dataPrefix := []byte("\ndata: ")
+	suffix := []byte("\n\n")
+	typeBytes := []byte(adaptiveChunk.Type)
+
+	result := make([]byte, 0, len(eventPrefix)+len(typeBytes)+len(dataPrefix)+len(chunkJSON)+len(suffix))
+	result = append(result, eventPrefix...)
+	result = append(result, typeBytes...)
+	result = append(result, dataPrefix...)
+	result = append(result, chunkJSON...)
+	result = append(result, suffix...)
+
+	return result, nil
 }
 
 // Provider returns the provider name

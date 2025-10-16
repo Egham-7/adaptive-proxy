@@ -5,6 +5,7 @@ import (
 	"io"
 	"iter"
 	"sync"
+	"sync/atomic"
 
 	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
@@ -17,8 +18,7 @@ import (
 type GeminiStreamReader struct {
 	iterator   iter.Seq2[*genai.GenerateContentResponse, error]
 	buffer     *bytebufferpool.ByteBuffer
-	done       bool
-	doneMux    sync.RWMutex
+	done       atomic.Bool
 	requestID  string
 	closeOnce  sync.Once
 	next       func() (*genai.GenerateContentResponse, error, bool)
@@ -95,11 +95,7 @@ func (r *GeminiStreamReader) Read(p []byte) (n int, err error) {
 	}
 
 	// Check if stream is done
-	r.doneMux.RLock()
-	done := r.done
-	r.doneMux.RUnlock()
-
-	if done {
+	if r.done.Load() {
 		return 0, io.EOF
 	}
 
@@ -117,9 +113,7 @@ func (r *GeminiStreamReader) Read(p []byte) (n int, err error) {
 		chunk, err, hasNext = r.next()
 	}
 	if !hasNext || err != nil {
-		r.doneMux.Lock()
-		r.done = true
-		r.doneMux.Unlock()
+		r.done.Store(true)
 
 		// Release iterator resources
 		if r.stop != nil {
@@ -152,9 +146,7 @@ func (r *GeminiStreamReader) Read(p []byte) (n int, err error) {
 func (r *GeminiStreamReader) Close() error {
 	var closeErr error
 	r.closeOnce.Do(func() {
-		r.doneMux.Lock()
-		r.done = true
-		r.doneMux.Unlock()
+		r.done.Store(true)
 
 		if r.stop != nil {
 			r.stop()

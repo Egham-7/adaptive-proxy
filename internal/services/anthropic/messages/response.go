@@ -22,13 +22,15 @@ import (
 type ResponseService struct {
 	modelRouter  *model_router.ModelRouter
 	usageService *usage.Service
+	usageWorker  *usage.Worker
 }
 
 // NewResponseService creates a new ResponseService
-func NewResponseService(modelRouter *model_router.ModelRouter, usageService *usage.Service) *ResponseService {
+func NewResponseService(modelRouter *model_router.ModelRouter, usageService *usage.Service, usageWorker *usage.Worker) *ResponseService {
 	return &ResponseService{
 		modelRouter:  modelRouter,
 		usageService: usageService,
+		usageWorker:  usageWorker,
 	}
 }
 
@@ -101,7 +103,7 @@ func (rs *ResponseService) HandleStreamingResponse(
 	fiberlog.Infof("[%s] Starting Anthropic streaming response handling", requestID)
 
 	// Use the optimized stream handler that properly handles native Anthropic streams
-	return handlers.HandleAnthropicNative(c, anthropicStream, requestID, provider, cacheSource, model, endpoint, usageService, apiKey)
+	return handlers.HandleAnthropicNative(c, anthropicStream, requestID, provider, cacheSource, model, endpoint, usageService, apiKey, rs.usageWorker)
 }
 
 // HandleError handles error responses for Anthropic Messages API

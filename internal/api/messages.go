@@ -27,6 +27,7 @@ type MessagesHandler struct {
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker
 	fallbackService *fallback.FallbackService
 	usageService    *usage.Service
+	usageWorker     *usage.Worker
 }
 
 // NewMessagesHandler creates a new MessagesHandler with Anthropic-specific services
@@ -35,16 +36,18 @@ func NewMessagesHandler(
 	modelRouter *model_router.ModelRouter,
 	circuitBreakers map[string]*circuitbreaker.CircuitBreaker,
 	usageService *usage.Service,
+	usageWorker *usage.Worker,
 ) *MessagesHandler {
 	return &MessagesHandler{
 		cfg:             cfg,
 		requestSvc:      messages.NewRequestService(),
 		messagesSvc:     messages.NewMessagesService(),
-		responseSvc:     messages.NewResponseService(modelRouter, usageService),
+		responseSvc:     messages.NewResponseService(modelRouter, usageService, usageWorker),
 		modelRouter:     modelRouter,
 		circuitBreakers: circuitBreakers,
 		fallbackService: fallback.NewFallbackService(cfg),
 		usageService:    usageService,
+		usageWorker:     usageWorker,
 	}
 }
 

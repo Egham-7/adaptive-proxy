@@ -41,13 +41,17 @@ func (s *StreamOrchestrator) Handle(ctx context.Context, writer contracts.Stream
 	buf := utils.Get()
 	defer utils.Put(buf)
 
-	// Pre-allocate buffer to reasonable size for streaming (32KB)
-	if cap(buf.B) < 32768 {
-		buf.B = make([]byte, 32768)
+	// Pre-allocate buffer to reasonable size for streaming (8KB for typical chunks)
+	if cap(buf.B) < 8192 {
+		buf.B = make([]byte, 8192)
 	} else {
-		buf.B = buf.B[:32768]
+		buf.B = buf.B[:8192]
 	}
 	buffer := buf.B
+
+	// Batched flush configuration
+	const flushInterval = 5
+	var chunksSinceFlush int64
 
 	// Ensure cleanup
 	defer func() {
@@ -112,18 +116,22 @@ func (s *StreamOrchestrator) Handle(ctx context.Context, writer contracts.Stream
 			return contracts.NewInternalError(s.requestID, "write failed", err)
 		}
 
-		// Flush data
-		if err := writer.Flush(); err != nil {
-			if contracts.IsClientDisconnect(err) {
-				fiberlog.Infof("[%s] Client disconnected during flush", s.requestID)
-				return err // Return as-is for proper classification
-			}
-			return contracts.NewInternalError(s.requestID, "flush failed", err)
-		}
-
 		// Update metrics
 		totalChunks++
 		totalBytes += int64(len(processedData))
+		chunksSinceFlush++
+
+		// Batched flush - only flush every N chunks
+		if chunksSinceFlush >= flushInterval {
+			if err := writer.Flush(); err != nil {
+				if contracts.IsClientDisconnect(err) {
+					fiberlog.Infof("[%s] Client disconnected during flush", s.requestID)
+					return err // Return as-is for proper classification
+				}
+				return contracts.NewInternalError(s.requestID, "flush failed", err)
+			}
+			chunksSinceFlush = 0
+		}
 
 		// Periodic logging for long streams
 		if totalChunks%100 == 0 {

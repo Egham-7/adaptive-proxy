@@ -17,11 +17,15 @@ import (
 )
 
 // StreamFactory creates properly layered streaming pipelines
-type StreamFactory struct{}
+type StreamFactory struct {
+	usageWorker *usage.Worker
+}
 
 // NewStreamFactory creates a new factory
-func NewStreamFactory() *StreamFactory {
-	return &StreamFactory{}
+func NewStreamFactory(usageWorker *usage.Worker) *StreamFactory {
+	return &StreamFactory{
+		usageWorker: usageWorker,
+	}
 }
 
 // CreateOpenAIPipeline creates a complete OpenAI streaming pipeline
@@ -36,7 +40,7 @@ func (f *StreamFactory) CreateOpenAIPipeline(
 	if err != nil {
 		return nil, err
 	}
-	processor := processors.NewOpenAIChunkProcessor(provider, cacheSource, requestID, model, endpoint, usageService, apiKey)
+	processor := processors.NewOpenAIChunkProcessor(provider, cacheSource, requestID, model, endpoint, usageService, apiKey, f.usageWorker)
 	return NewStreamOrchestrator(reader, processor, requestID), nil
 }
 
@@ -52,7 +56,7 @@ func (f *StreamFactory) CreateAnthropicNativePipeline(
 	if err != nil {
 		return nil, err
 	}
-	processor := processors.NewAnthropicChunkProcessor(provider, cacheSource, requestID, model, endpoint, usageService, apiKey)
+	processor := processors.NewAnthropicChunkProcessor(provider, cacheSource, requestID, model, endpoint, usageService, apiKey, f.usageWorker)
 	return NewStreamOrchestrator(reader, processor, requestID), nil
 }
 
@@ -69,6 +73,6 @@ func (f *StreamFactory) CreateGeminiPipeline(
 		return nil, err
 	}
 	// Use Gemini processor to format as SSE events for SDK compatibility
-	processor := processors.NewGeminiChunkProcessor(provider, cacheSource, requestID, model, endpoint, usageService, apiKey)
+	processor := processors.NewGeminiChunkProcessor(provider, cacheSource, requestID, model, endpoint, usageService, apiKey, f.usageWorker)
 	return NewStreamOrchestrator(reader, processor, requestID), nil
 }
