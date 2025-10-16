@@ -157,7 +157,7 @@ func (s *Service) UpdateProject(ctx context.Context, userID string, projectID ui
 }
 
 func (s *Service) DeleteProject(ctx context.Context, userID string, projectID uint) error {
-	hasAccess, err := s.authProvider.ValidateProjectAccess(ctx, userID, projectID, auth.RoleOwner)
+	hasAccess, err := s.authProvider.ValidateProjectAccess(ctx, userID, projectID, auth.RoleAdmin)
 	if err != nil {
 		return fmt.Errorf("failed to validate project access: %w", err)
 	}
