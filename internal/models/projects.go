@@ -147,7 +147,7 @@ type OrganizationUpdateRequest struct {
 
 type AddOrganizationMemberRequest struct {
 	UserID string `json:"user_id" validate:"required"`
-	Role   string `json:"role" validate:"required,oneof=owner admin member"`
+	Role   string `json:"role" validate:"required,oneof=admin member"`
 }
 
 type UserCreateRequest struct {

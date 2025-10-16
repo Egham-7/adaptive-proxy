@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// AddOrgAdminsToProject adds all organization admins to a project as admin members
+// AddOrgAdminsToProject adds all organization admins to a project as owners
 // excludeUserID is optional and allows skipping a user (e.g., the project creator)
 func (s *Service) AddOrgAdminsToProject(ctx context.Context, projectID uint, organizationID, excludeUserID string) error {
 	// Get all members of the organization from Clerk
@@ -23,7 +23,7 @@ func (s *Service) AddOrgAdminsToProject(ctx context.Context, projectID uint, org
 		return fmt.Errorf("failed to list organization members: %w", err)
 	}
 
-	// Filter for admins and prepare batch insert
+	// Filter for admins and prepare batch insert as owners
 	var adminsToAdd []models.ProjectMember
 	for _, membership := range memberships.OrganizationMemberships {
 		// Skip if not an admin
@@ -41,7 +41,7 @@ func (s *Service) AddOrgAdminsToProject(ctx context.Context, projectID uint, org
 		adminsToAdd = append(adminsToAdd, models.ProjectMember{
 			UserID:    userID,
 			ProjectID: projectID,
-			Role:      models.ProjectMemberRoleAdmin,
+			Role:      models.ProjectMemberRoleOwner,
 		})
 	}
 

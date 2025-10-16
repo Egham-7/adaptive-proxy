@@ -61,6 +61,7 @@ func (s *Service) CreateProject(ctx context.Context, userID string, req *models.
 			return fmt.Errorf("failed to create project: %w", err)
 		}
 
+		// Add creator as owner
 		owner := &models.ProjectMember{
 			UserID:    userID,
 			ProjectID: project.ID,
@@ -157,7 +158,7 @@ func (s *Service) UpdateProject(ctx context.Context, userID string, projectID ui
 }
 
 func (s *Service) DeleteProject(ctx context.Context, userID string, projectID uint) error {
-	hasAccess, err := s.authProvider.ValidateProjectAccess(ctx, userID, projectID, auth.RoleAdmin)
+	hasAccess, err := s.authProvider.ValidateProjectAccess(ctx, userID, projectID, auth.RoleOwner)
 	if err != nil {
 		return fmt.Errorf("failed to validate project access: %w", err)
 	}
