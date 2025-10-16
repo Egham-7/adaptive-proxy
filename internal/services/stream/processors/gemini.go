@@ -23,10 +23,11 @@ type GeminiChunkProcessor struct {
 	apiKey       *models.APIKey
 	model        string
 	endpoint     string
+	usageWorker  *usage.Worker
 }
 
 // NewGeminiChunkProcessor creates a new Gemini chunk processor
-func NewGeminiChunkProcessor(provider, cacheSource, requestID, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey) *GeminiChunkProcessor {
+func NewGeminiChunkProcessor(provider, cacheSource, requestID, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey, usageWorker *usage.Worker) *GeminiChunkProcessor {
 	return &GeminiChunkProcessor{
 		provider:     provider,
 		cacheSource:  cacheSource,
@@ -35,6 +36,7 @@ func NewGeminiChunkProcessor(provider, cacheSource, requestID, model, endpoint s
 		apiKey:       apiKey,
 		model:        model,
 		endpoint:     endpoint,
+		usageWorker:  usageWorker,
 	}
 }
 
@@ -65,7 +67,7 @@ func (p *GeminiChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 		// Note: Cache metadata would be added here if needed in the response structure
 	}
 
-	if adaptiveResponse.UsageMetadata != nil && p.usageService != nil && p.apiKey != nil {
+	if adaptiveResponse.UsageMetadata != nil && p.usageWorker != nil && p.apiKey != nil {
 		inputTokens := int(adaptiveResponse.UsageMetadata.PromptTokenCount)
 		outputTokens := int(adaptiveResponse.UsageMetadata.CandidatesTokenCount)
 
@@ -83,12 +85,7 @@ func (p *GeminiChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 			RequestID:      p.requestID,
 		}
 
-		go func(params models.RecordUsageParams, reqID string) {
-			_, err := p.usageService.RecordUsage(context.Background(), params)
-			if err != nil {
-				fiberlog.Errorf("[%s] Failed to record streaming usage: %v", reqID, err)
-			}
-		}(usageParams, p.requestID)
+		p.usageWorker.Submit(usageParams, p.requestID)
 	}
 
 	// Marshal back to JSON for output
@@ -98,9 +95,16 @@ func (p *GeminiChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 		return nil, fmt.Errorf("failed to marshal adaptive response: %w", err)
 	}
 
-	// Format as SSE event - this matches the responseLineRE regex: /^\s*data: (.*)(?:\n\n|\r\r|\r\n\r\n)/
-	sseData := fmt.Sprintf("data: %s\n\n", string(chunkJSON))
-	return []byte(sseData), nil
+	// Format as SSE event - optimized with pre-allocated buffer
+	dataPrefix := []byte("data: ")
+	suffix := []byte("\n\n")
+
+	result := make([]byte, 0, len(dataPrefix)+len(chunkJSON)+len(suffix))
+	result = append(result, dataPrefix...)
+	result = append(result, chunkJSON...)
+	result = append(result, suffix...)
+
+	return result, nil
 }
 
 // Provider returns the provider name

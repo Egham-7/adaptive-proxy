@@ -16,12 +16,12 @@ import (
 )
 
 // HandleGemini manages Gemini streaming response using proper layered architecture
-func HandleGemini(c *fiber.Ctx, streamIter iter.Seq2[*genai.GenerateContentResponse, error], requestID, provider, cacheSource, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey) error {
+func HandleGemini(c *fiber.Ctx, streamIter iter.Seq2[*genai.GenerateContentResponse, error], requestID, provider, cacheSource, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey, usageWorker *usage.Worker) error {
 	fiberlog.Infof("[%s] Starting Gemini stream handling", requestID)
 
 	// Create streaming pipeline - validates stream internally by reading first chunk
 	// If validation fails (429, 500, etc.), error is returned BEFORE HTTP streaming starts
-	factory := NewStreamFactory()
+	factory := NewStreamFactory(usageWorker)
 	handler, err := factory.CreateGeminiPipeline(streamIter, requestID, provider, cacheSource, model, endpoint, usageService, apiKey)
 	if err != nil {
 		fiberlog.Errorf("[%s] Stream validation failed: %v", requestID, err)

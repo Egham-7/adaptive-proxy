@@ -16,12 +16,12 @@ import (
 )
 
 // HandleAnthropicNative handles native Anthropic SDK streams using proper layered architecture
-func HandleAnthropicNative(c *fiber.Ctx, stream *ssestream.Stream[anthropic.MessageStreamEventUnion], requestID, provider, cacheSource, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey) error {
+func HandleAnthropicNative(c *fiber.Ctx, stream *ssestream.Stream[anthropic.MessageStreamEventUnion], requestID, provider, cacheSource, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey, usageWorker *usage.Worker) error {
 	fiberlog.Infof("[%s] Starting native Anthropic stream handling", requestID)
 
 	// Create streaming pipeline - validates stream internally by reading first event
 	// If validation fails (429, 500, etc.), error is returned BEFORE HTTP streaming starts
-	factory := NewStreamFactory()
+	factory := NewStreamFactory(usageWorker)
 	handler, err := factory.CreateAnthropicNativePipeline(stream, requestID, provider, cacheSource, model, endpoint, usageService, apiKey)
 	if err != nil {
 		fiberlog.Errorf("[%s] Stream validation failed: %v", requestID, err)

@@ -21,13 +21,15 @@ import (
 type ResponseService struct {
 	modelRouter  *model_router.ModelRouter
 	usageService *usage.Service
+	usageWorker  *usage.Worker
 }
 
 // NewResponseService creates a new ResponseService
-func NewResponseService(modelRouter *model_router.ModelRouter, usageService *usage.Service) *ResponseService {
+func NewResponseService(modelRouter *model_router.ModelRouter, usageService *usage.Service, usageWorker *usage.Worker) *ResponseService {
 	return &ResponseService{
 		modelRouter:  modelRouter,
 		usageService: usageService,
+		usageWorker:  usageWorker,
 	}
 }
 
@@ -102,7 +104,7 @@ func (rs *ResponseService) HandleStreamingResponse(
 	apiKey, _ := auth.GetAPIKey(c)
 
 	// Use the proper Gemini streaming handler from the stream package
-	return handlers.HandleGemini(c, streamIter, requestID, provider, cacheSource, model, endpoint, rs.usageService, apiKey)
+	return handlers.HandleGemini(c, streamIter, requestID, provider, cacheSource, model, endpoint, rs.usageService, apiKey, rs.usageWorker)
 }
 
 // HandleError processes and returns error responses

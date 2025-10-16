@@ -9,7 +9,6 @@ import (
 	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
 	"github.com/Egham-7/adaptive-proxy/internal/services/usage"
 
-	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/openai/openai-go/v2"
 )
 
@@ -22,10 +21,11 @@ type OpenAIChunkProcessor struct {
 	apiKey       *models.APIKey
 	model        string
 	endpoint     string
+	usageWorker  *usage.Worker
 }
 
 // NewOpenAIChunkProcessor creates a new OpenAI chunk processor
-func NewOpenAIChunkProcessor(provider, cacheSource, requestID, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey) *OpenAIChunkProcessor {
+func NewOpenAIChunkProcessor(provider, cacheSource, requestID, model, endpoint string, usageService *usage.Service, apiKey *models.APIKey, usageWorker *usage.Worker) *OpenAIChunkProcessor {
 	return &OpenAIChunkProcessor{
 		provider:     provider,
 		cacheSource:  cacheSource,
@@ -34,6 +34,7 @@ func NewOpenAIChunkProcessor(provider, cacheSource, requestID, model, endpoint s
 		apiKey:       apiKey,
 		model:        model,
 		endpoint:     endpoint,
+		usageWorker:  usageWorker,
 	}
 }
 
@@ -64,7 +65,7 @@ func (p *OpenAIChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 	}
 
 	// Check if this chunk contains usage data (final chunk) and record it
-	if adaptiveChunk.Usage.TotalTokens > 0 && p.usageService != nil && p.apiKey != nil {
+	if adaptiveChunk.Usage.TotalTokens > 0 && p.usageWorker != nil && p.apiKey != nil {
 		inputTokens := int(adaptiveChunk.Usage.PromptTokens)
 		outputTokens := int(adaptiveChunk.Usage.CompletionTokens)
 
@@ -82,12 +83,7 @@ func (p *OpenAIChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 			RequestID:      p.requestID,
 		}
 
-		go func(params models.RecordUsageParams, reqID string) {
-			_, err := p.usageService.RecordUsage(context.Background(), params)
-			if err != nil {
-				fiberlog.Errorf("[%s] Failed to record streaming usage: %v", reqID, err)
-			}
-		}(usageParams, p.requestID)
+		p.usageWorker.Submit(usageParams, p.requestID)
 	}
 
 	// Marshal to JSON
@@ -96,9 +92,16 @@ func (p *OpenAIChunkProcessor) Process(ctx context.Context, data []byte) ([]byte
 		return nil, fmt.Errorf("failed to marshal adaptive chunk: %w", err)
 	}
 
-	// Format as SSE event
-	sseData := fmt.Sprintf("data: %s\n\n", string(chunkJSON))
-	return []byte(sseData), nil
+	// Format as SSE event - optimized with pre-allocated buffer
+	dataPrefix := []byte("data: ")
+	suffix := []byte("\n\n")
+
+	result := make([]byte, 0, len(dataPrefix)+len(chunkJSON)+len(suffix))
+	result = append(result, dataPrefix...)
+	result = append(result, chunkJSON...)
+	result = append(result, suffix...)
+
+	return result, nil
 }
 
 // Provider returns the provider name

@@ -47,6 +47,7 @@ type Proxy struct {
 	builder          *builder.Builder
 	enabledEndpoints map[string]bool
 	usageTracker     *middleware.UsageTracker
+	usageWorker      *usage.Worker
 }
 
 type proxyServices struct {
@@ -54,6 +55,7 @@ type proxyServices struct {
 	creditsService *usage.CreditsService
 	apiKeyService  *usage.APIKeyService
 	usageTracker   *middleware.UsageTracker
+	usageWorker    *usage.Worker
 }
 
 type proxyInfrastructure struct {
@@ -132,13 +134,14 @@ func (p *Proxy) Run() error {
 	services := initializeServices(p.db, p.config)
 	if services != nil {
 		p.usageTracker = services.usageTracker
+		p.usageWorker = services.usageWorker
 	}
 
 	// === Middleware Setup ===
 	setupMiddleware(p.app, p.config, p)
 
 	// === Routes Setup ===
-	if err := setupRoutes(p.app, p.config, p.redis, p.db, p.enabledEndpoints); err != nil {
+	if err := setupRoutes(p.app, p.config, p.redis, p.db, p.enabledEndpoints, p.usageWorker); err != nil {
 		return fmt.Errorf("failed to setup routes: %w", err)
 	}
 
@@ -177,6 +180,13 @@ func (p *Proxy) Run() error {
 
 	// Graceful shutdown
 	fiberlog.Info("Server shutting down gracefully...")
+
+	// Stop usage worker before shutdown
+	if p.usageWorker != nil {
+		fiberlog.Info("Stopping usage worker...")
+		p.usageWorker.Stop()
+	}
+
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
 
@@ -452,7 +462,7 @@ func testRedisConnectionWithRetry(client *redis.Client) (*redis.Client, error) {
 	return nil, fmt.Errorf("failed to connect to Redis after %d attempts", maxAttempts)
 }
 
-func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, db *database.DB, enabledEndpoints map[string]bool) error {
+func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, db *database.DB, enabledEndpoints map[string]bool, usageWorker *usage.Worker) error {
 	// Create shared services
 	reqSvc := completions.NewRequestService()
 
@@ -610,7 +620,7 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 		}
 	}
 
-	completionSvc := completions.NewCompletionService(cfg, respSvc, circuitBreakers, usageSvc)
+	completionSvc := completions.NewCompletionService(cfg, respSvc, circuitBreakers, usageSvc, usageWorker)
 
 	// Create select model services
 	selectModelReqSvc := select_model.NewRequestService()
@@ -641,11 +651,11 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	}
 
 	if isEnabled("messages") {
-		messagesHandler = api.NewMessagesHandler(cfg, modelRouter, circuitBreakers, usageSvc)
+		messagesHandler = api.NewMessagesHandler(cfg, modelRouter, circuitBreakers, usageSvc, usageWorker)
 	}
 
 	if isEnabled("generate") {
-		generateHandler = geminiapi.NewGenerateHandler(cfg, modelRouter, circuitBreakers, usageSvc)
+		generateHandler = geminiapi.NewGenerateHandler(cfg, modelRouter, circuitBreakers, usageSvc, usageWorker)
 	}
 
 	if isEnabled("count_tokens") {
@@ -676,6 +686,8 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	}
 
 	if generateHandler != nil {
+		v1Group.Post("/generate", generateHandler.Generate)
+		v1Group.Post("/generate/stream", generateHandler.StreamGenerate)
 
 		// v1beta routes (Gemini SDK compatibility)
 		v1betaGroup := app.Group("/v1beta")
@@ -690,6 +702,9 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	if countTokensHandler != nil {
 		// Add to v1beta if not already created
 		v1betaGroup := app.Group("/v1beta")
+		if authMiddleware != nil {
+			v1betaGroup.Use(authMiddleware.RequireAuth())
+		}
 		v1betaGroup.Post(`/models/:model\:countTokens`, countTokensHandler.CountTokens)
 	}
 
@@ -753,11 +768,18 @@ func initializeServices(db *database.DB, cfg *config.Config) *proxyServices {
 		usageTracker = middleware.NewUsageTracker(usageSvc, creditsSvc, creditsEnabled)
 	}
 
+	// Initialize usage worker pool (2 workers, buffer size 100)
+	var usageWorker *usage.Worker
+	if usageSvc != nil {
+		usageWorker = usage.NewWorker(usageSvc, 2, 100)
+	}
+
 	return &proxyServices{
 		usageService:   usageSvc,
 		creditsService: creditsSvc,
 		apiKeyService:  apiKeySvc,
 		usageTracker:   usageTracker,
+		usageWorker:    usageWorker,
 	}
 }
 

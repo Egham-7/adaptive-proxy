@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"sync/atomic"
 
 	"github.com/Egham-7/adaptive-proxy/internal/utils"
 
@@ -19,8 +20,7 @@ import (
 type OpenAIStreamReader struct {
 	stream     *ssestream.Stream[openai.ChatCompletionChunk]
 	buffer     *bytebufferpool.ByteBuffer
-	done       bool
-	doneMux    sync.RWMutex
+	done       atomic.Bool
 	requestID  string
 	closeOnce  sync.Once
 	firstChunk *openai.ChatCompletionChunk // Cached first chunk to replay
@@ -64,11 +64,7 @@ func (r *OpenAIStreamReader) Read(p []byte) (n int, err error) {
 	}
 
 	// Check if stream is done
-	r.doneMux.RLock()
-	done := r.done
-	r.doneMux.RUnlock()
-
-	if done {
+	if r.done.Load() {
 		return 0, io.EOF
 	}
 
@@ -84,12 +80,12 @@ func (r *OpenAIStreamReader) Read(p []byte) (n int, err error) {
 			// Handle stream termination
 			if streamErr := r.stream.Err(); streamErr != nil {
 				if errors.Is(streamErr, io.EOF) {
-					r.setDone()
+					r.done.Store(true)
 					return 0, io.EOF
 				}
 				// Treat context cancellation as normal termination (client disconnect)
 				if errors.Is(streamErr, context.Canceled) || errors.Is(streamErr, context.DeadlineExceeded) {
-					r.setDone()
+					r.done.Store(true)
 					return 0, io.EOF
 				}
 				return 0, streamErr
@@ -113,7 +109,7 @@ func (r *OpenAIStreamReader) Read(p []byte) (n int, err error) {
 
 	// Check for completion
 	if r.hasFinishReason(&chunk) {
-		r.setDone()
+		r.done.Store(true)
 	}
 
 	// Return data from buffer
@@ -126,7 +122,7 @@ func (r *OpenAIStreamReader) Read(p []byte) (n int, err error) {
 func (r *OpenAIStreamReader) Close() error {
 	var err error
 	r.closeOnce.Do(func() {
-		r.setDone()
+		r.done.Store(true)
 		if r.stream != nil {
 			err = r.stream.Close()
 		}
@@ -136,13 +132,6 @@ func (r *OpenAIStreamReader) Close() error {
 		}
 	})
 	return err
-}
-
-// setDone marks the stream as done (thread-safe)
-func (r *OpenAIStreamReader) setDone() {
-	r.doneMux.Lock()
-	r.done = true
-	r.doneMux.Unlock()
 }
 
 // hasFinishReason checks if chunk indicates completion
