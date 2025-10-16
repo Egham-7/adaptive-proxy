@@ -110,8 +110,12 @@ func (m *AuthMiddleware) authenticate(required bool) fiber.Handler {
 
 		authenticated, authType, err := m.validateToken(c, token)
 		if err != nil || !authenticated {
+			errMsg := "Invalid or expired token"
+			if err != nil {
+				errMsg = err.Error()
+			}
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid or expired token",
+				"error": errMsg,
 			})
 		}
 
@@ -144,7 +148,11 @@ func (m *AuthMiddleware) validateToken(c *fiber.Ctx, token string) (bool, string
 	}
 
 	if m.config.EnableAPIKeys && m.apiKeyService != nil {
-		if authCtx, err := m.tryAPIKey(c, token); err == nil && authCtx != nil {
+		authCtx, err := m.tryAPIKey(c, token)
+		if err != nil {
+			return false, "", fmt.Errorf("API key validation failed: %w", err)
+		}
+		if authCtx != nil {
 			c.Locals("auth_context", authCtx)
 			return true, string(authCtx.Type), nil
 		}
@@ -209,6 +217,7 @@ func (m *AuthMiddleware) tryClerkToken(c *fiber.Ctx, token string) (*auth.AuthCo
 func (m *AuthMiddleware) tryAPIKey(c *fiber.Ctx, token string) (*auth.AuthContext, error) {
 	apiKey, err := m.apiKeyService.ValidateAPIKey(c.Context(), token)
 	if err != nil {
+		c.Locals("auth_error", err.Error())
 		return nil, err
 	}
 

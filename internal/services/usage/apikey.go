@@ -137,9 +137,10 @@ func (s *APIKeyService) ValidateAPIKey(ctx context.Context, key string) (*models
 	keyHash := HashAPIKey(key)
 	var apiKey models.APIKey
 
-	if err := s.db.WithContext(ctx).Where("key_hash = ? AND is_active = ?", keyHash, true).First(&apiKey).Error; err != nil {
+	err := s.db.WithContext(ctx).Where("key_hash = ? AND is_active = ?", keyHash, true).First(&apiKey).Error
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("invalid API key")
+			return nil, fmt.Errorf("invalid API key: not found or inactive")
 		}
 		return nil, fmt.Errorf("failed to validate API key: %w", err)
 	}
