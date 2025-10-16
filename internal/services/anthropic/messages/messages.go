@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/auth"
 	"github.com/Egham-7/adaptive-proxy/internal/utils/clientcache"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -31,20 +32,8 @@ func NewMessagesService() *MessagesService {
 
 // generateConfigHash creates a hash of the provider config to detect changes
 func (ms *MessagesService) generateConfigHash(providerConfig models.ProviderConfig) (string, error) {
-	type configForHash struct {
-		BaseURL    string
-		Headers    map[string]string
-		APIKeyHash string
-	}
-
-	apiKeyHash := sha256.Sum256([]byte(providerConfig.APIKey))
-	hashConfig := configForHash{
-		BaseURL:    providerConfig.BaseURL,
-		Headers:    providerConfig.Headers,
-		APIKeyHash: fmt.Sprintf("%x", apiKeyHash[:8]),
-	}
-
-	configJSON, err := json.Marshal(hashConfig)
+	// Hash the entire provider config for consistent cache key generation
+	configJSON, err := json.Marshal(providerConfig)
 	if err != nil {
 		return "", err
 	}
@@ -196,7 +185,7 @@ func (ms *MessagesService) HandleAnthropicProvider(
 		}
 
 		// Extract API key from context
-		apiKey, _ := c.Locals("api_key").(*models.APIKey)
+		apiKey, _ := auth.GetAPIKey(c)
 
 		return responseSvc.HandleStreamingResponse(c, stream, requestID, provider, cacheSource, string(req.Model), "/v1/messages", responseSvc.usageService, apiKey)
 	}

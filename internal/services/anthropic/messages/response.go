@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/auth"
 	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/handlers"
@@ -54,8 +55,7 @@ func (rs *ResponseService) HandleNonStreamingResponse(
 
 	// Record usage if usage service is available
 	if rs.usageService != nil {
-		apiKeyInterface := c.Locals("api_key")
-		if apiKey, ok := apiKeyInterface.(*models.APIKey); ok && apiKey != nil {
+		if apiKey, ok := auth.GetAPIKey(c); ok && apiKey != nil {
 			inputTokens := int(adaptiveResponse.Usage.InputTokens)
 			outputTokens := int(adaptiveResponse.Usage.OutputTokens)
 
