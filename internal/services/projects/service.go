@@ -76,6 +76,14 @@ func (s *Service) CreateProject(ctx context.Context, userID string, req *models.
 		return nil, err
 	}
 
+	// Add all organization admins to the project (excluding the creator who is already owner)
+	// This runs outside the transaction as it's best-effort and shouldn't block project creation
+	// If this fails, the lazy authorization will still grant access
+	if err := s.AddOrgAdminsToProject(ctx, project.ID, req.OrganizationID, userID); err != nil {
+		// Log warning but don't fail project creation - lazy auth will handle it
+		fmt.Printf("Warning: failed to add org admins to project %d: %v\n", project.ID, err)
+	}
+
 	// Reload the project with members
 	err = s.db.WithContext(ctx).Preload("Members").First(project, project.ID).Error
 	if err != nil {
