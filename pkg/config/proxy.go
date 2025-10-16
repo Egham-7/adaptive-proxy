@@ -502,6 +502,8 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 
 		var authProvider auth.AuthProvider
 		var authMiddleware *middleware.AuthMiddleware
+		var projectsSvc *projects.Service
+
 		if cfg.Auth != nil {
 			if cfg.Auth.ClerkConfig != nil && (cfg.Auth.ClerkConfig.SecretKey != "" || cfg.Auth.ClerkConfig.WebhookSecret != "") {
 				authProvider = auth.NewClerkAuthProvider(cfg.Auth.ClerkConfig.SecretKey, db.DB)
@@ -517,9 +519,12 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 
 				app.Use("/admin/*", authMiddleware.RequireAuth())
 
+				// Initialize projects service for webhook handler and routes
+				projectsSvc = projects.NewService(db.DB, authProvider)
+
 				if creditsSvc != nil {
 					organizationsSvc := organizations.NewService(db.DB)
-					clerkWebhookHandler := api.NewClerkWebhookHandler(cfg.Auth.ClerkConfig.WebhookSecret, creditsSvc, organizationsSvc)
+					clerkWebhookHandler := api.NewClerkWebhookHandler(cfg.Auth.ClerkConfig.WebhookSecret, creditsSvc, organizationsSvc, projectsSvc)
 					app.Post("/webhooks/clerk", clerkWebhookHandler.HandleWebhook)
 
 					orgGroup := app.Group("/admin/organizations")
@@ -547,8 +552,8 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 				}
 			}
 
-			if authProvider != nil {
-				projectsSvc := projects.NewService(db.DB, authProvider)
+			// Initialize projects routes (projectsSvc already initialized above for webhook handler)
+			if projectsSvc != nil {
 				projectsHandler := api.NewProjectsHandler(projectsSvc)
 
 				projectsGroup := app.Group("/admin/projects")
