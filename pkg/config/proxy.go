@@ -676,6 +676,8 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	}
 
 	if generateHandler != nil {
+		v1Group.Post("/generate", generateHandler.Generate)
+		v1Group.Post("/generate/stream", generateHandler.StreamGenerate)
 
 		// v1beta routes (Gemini SDK compatibility)
 		v1betaGroup := app.Group("/v1beta")
@@ -690,6 +692,9 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	if countTokensHandler != nil {
 		// Add to v1beta if not already created
 		v1betaGroup := app.Group("/v1beta")
+		if authMiddleware != nil {
+			v1betaGroup.Use(authMiddleware.RequireAuth())
+		}
 		v1betaGroup.Post(`/models/:model\:countTokens`, countTokensHandler.CountTokens)
 	}
 
