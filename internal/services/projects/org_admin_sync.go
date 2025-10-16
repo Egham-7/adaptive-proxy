@@ -157,7 +157,6 @@ func (s *Service) RemoveUserFromAllOrgProjects(ctx context.Context, userID, orga
 		Where("project_members.user_id = ? AND projects.organization_id = ?", userID, organizationID).
 		Preload("Project").
 		Find(&members).Error
-
 	if err != nil {
 		return fmt.Errorf("failed to find user's project memberships: %w", err)
 	}
@@ -177,7 +176,6 @@ func (s *Service) RemoveUserFromAllOrgProjects(ctx context.Context, userID, orga
 		err := s.db.WithContext(ctx).
 			Where("project_id = ? AND user_id = ?", member.ProjectID, userID).
 			Delete(&models.ProjectMember{}).Error
-
 		if err != nil {
 			// Log error but continue with other projects
 			fmt.Printf("Warning: failed to remove user %s from project %d: %v\n", userID, member.ProjectID, err)
@@ -196,7 +194,6 @@ func (s *Service) transferOwnership(ctx context.Context, project *models.Project
 		Where("project_id = ? AND user_id != ?", project.ID, currentOwnerID).
 		Order("CASE WHEN role = 'admin' THEN 1 WHEN role = 'member' THEN 2 END, created_at ASC").
 		Find(&members).Error
-
 	if err != nil {
 		return fmt.Errorf("failed to find project members: %w", err)
 	}
