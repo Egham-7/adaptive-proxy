@@ -85,30 +85,13 @@ func (p *ClerkAuthProvider) ValidateProjectAccess(ctx context.Context, userID st
 		return false, nil
 	}
 
-	// Org admins get implicit admin access to all organization projects
+	// Org admins get implicit owner access to all organization projects
 	if orgRole == "org:admin" {
-		// Opportunistic backfill: async add to project_members for future fast path
-		go p.backfillProjectMembership(context.Background(), userID, projectID, models.ProjectMemberRoleAdmin)
-
-		return RoleAdmin.HasPermission(requiredRole), nil
+		return RoleOwner.HasPermission(requiredRole), nil
 	}
 
 	// User is org member but not admin - no implicit access
 	return false, nil
-}
-
-// backfillProjectMembership opportunistically adds a user to project_members
-// This is a performance optimization to avoid future Clerk API calls
-func (p *ClerkAuthProvider) backfillProjectMembership(ctx context.Context, userID string, projectID uint, role models.ProjectMemberRole) {
-	member := &models.ProjectMember{
-		UserID:    userID,
-		ProjectID: projectID,
-		Role:      role,
-	}
-
-	// Best-effort: ignore errors (duplicate key, etc.)
-	// This is just cache warming, lazy auth will work regardless
-	_ = p.db.WithContext(ctx).Create(member).Error
 }
 
 func (p *ClerkAuthProvider) GetUserOrganizations(ctx context.Context, userID string) ([]string, error) {
