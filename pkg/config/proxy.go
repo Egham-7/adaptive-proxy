@@ -482,6 +482,7 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 
 	var creditsSvc *usage.CreditsService
 	var stripeSvc *usage.StripeService
+	var authMiddleware *middleware.AuthMiddleware
 	if db != nil && cfg.APIKey != nil && cfg.APIKey.Enabled {
 		apiKeySvc := usage.NewAPIKeyService(db.DB)
 
@@ -501,7 +502,6 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 		usageSvc = usage.NewService(db.DB, creditsSvc)
 
 		var authProvider auth.AuthProvider
-		var authMiddleware *middleware.AuthMiddleware
 		var projectsSvc *projects.Service
 
 		if cfg.Auth != nil {
@@ -659,6 +659,9 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 
 	// v1 routes (only register enabled endpoints)
 	v1Group := app.Group("/v1")
+	if authMiddleware != nil {
+		v1Group.Use(authMiddleware.RequireAuth())
+	}
 
 	if chatCompletionHandler != nil {
 		v1Group.Post("/chat/completions", chatCompletionHandler.ChatCompletion)
@@ -673,11 +676,13 @@ func setupRoutes(app *fiber.App, cfg *config.Config, redisClient *redis.Client, 
 	}
 
 	if generateHandler != nil {
-		v1Group.Post("/generate", generateHandler.Generate)
-		v1Group.Post("/generate/stream", generateHandler.StreamGenerate)
 
 		// v1beta routes (Gemini SDK compatibility)
 		v1betaGroup := app.Group("/v1beta")
+
+		if authMiddleware != nil {
+			v1betaGroup.Use(authMiddleware.RequireAuth())
+		}
 		v1betaGroup.Post(`/models/:model\:generateContent`, generateHandler.Generate)
 		v1betaGroup.Post(`/models/:model\:streamGenerateContent`, generateHandler.StreamGenerate)
 	}
