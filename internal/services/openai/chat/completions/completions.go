@@ -10,6 +10,7 @@ import (
 
 	"github.com/Egham-7/adaptive-proxy/internal/config"
 	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/auth"
 	"github.com/Egham-7/adaptive-proxy/internal/services/circuitbreaker"
 	"github.com/Egham-7/adaptive-proxy/internal/services/fallback"
 	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
@@ -57,28 +58,8 @@ func NewCompletionService(cfg *config.Config, responseService *ResponseService, 
 
 // generateConfigHash creates a hash of the provider config to detect changes
 func (cs *CompletionService) generateConfigHash(providerConfig models.ProviderConfig, isStream bool) (string, error) {
-	// Create a simplified config struct for hashing (excluding sensitive data from logs)
-	type configForHash struct {
-		BaseURL    string
-		TimeoutMs  int
-		Headers    map[string]string
-		IsStream   bool
-		APIKeyHash string // Hash of API key instead of raw key
-	}
-
-	// Hash the API key separately
-	apiKeyHash := sha256.Sum256([]byte(providerConfig.APIKey))
-
-	hashConfig := configForHash{
-		BaseURL:    providerConfig.BaseURL,
-		TimeoutMs:  providerConfig.TimeoutMs,
-		Headers:    providerConfig.Headers,
-		IsStream:   isStream,
-		APIKeyHash: fmt.Sprintf("%x", apiKeyHash[:8]), // Use first 8 bytes of hash
-	}
-
-	// Marshal to JSON for consistent hashing
-	configJSON, err := json.Marshal(hashConfig)
+	// Hash the entire provider config for consistent cache key generation
+	configJSON, err := json.Marshal(providerConfig)
 	if err != nil {
 		return "", err
 	}
@@ -284,13 +265,8 @@ func (cs *CompletionService) handleStreamingCompletion(
 	model := string(openAIParams.Model)
 	endpoint := "/v1/chat/completions"
 
-	// Get API key from context
-	var apiKey *models.APIKey
-	if apiKeyInterface := c.Locals("api_key"); apiKeyInterface != nil {
-		if key, ok := apiKeyInterface.(*models.APIKey); ok {
-			apiKey = key
-		}
-	}
+	// Get API key from auth context
+	apiKey, _ := auth.GetAPIKey(c)
 
 	err := handlers.HandleOpenAI(c, streamResp, requestID, providerName, cacheSource, model, endpoint, cs.usageService, apiKey)
 	if err != nil {
@@ -359,8 +335,8 @@ func (cs *CompletionService) handleNonStreamingCompletion(
 	}
 
 	if cs.usageService != nil {
-		apiKeyInterface := c.Locals("api_key")
-		if apiKey, ok := apiKeyInterface.(*models.APIKey); ok && apiKey != nil {
+		// Get API key from auth context
+		if apiKey, ok := auth.GetAPIKey(c); ok && apiKey != nil {
 			inputTokens := int(resp.Usage.PromptTokens)
 			outputTokens := int(resp.Usage.CompletionTokens)
 

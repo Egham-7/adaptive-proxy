@@ -30,18 +30,8 @@ func NewGenerateService() *GenerateService {
 
 // generateConfigHash creates a hash of the provider config to detect changes
 func (gs *GenerateService) generateConfigHash(providerConfig models.ProviderConfig) (string, error) {
-	type configForHash struct {
-		BaseURL    string
-		APIKeyHash string
-	}
-
-	apiKeyHash := sha256.Sum256([]byte(providerConfig.APIKey))
-	hashConfig := configForHash{
-		BaseURL:    providerConfig.BaseURL,
-		APIKeyHash: fmt.Sprintf("%x", apiKeyHash[:8]),
-	}
-
-	configJSON, err := json.Marshal(hashConfig)
+	// Hash the entire provider config for consistent cache key generation
+	configJSON, err := json.Marshal(providerConfig)
 	if err != nil {
 		return "", err
 	}

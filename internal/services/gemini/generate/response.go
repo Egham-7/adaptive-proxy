@@ -5,6 +5,7 @@ import (
 	"iter"
 
 	"github.com/Egham-7/adaptive-proxy/internal/models"
+	"github.com/Egham-7/adaptive-proxy/internal/services/auth"
 	"github.com/Egham-7/adaptive-proxy/internal/services/format_adapter"
 	"github.com/Egham-7/adaptive-proxy/internal/services/model_router"
 	"github.com/Egham-7/adaptive-proxy/internal/services/stream/handlers"
@@ -55,8 +56,7 @@ func (rs *ResponseService) HandleNonStreamingResponse(
 
 	// Record usage if usage service is available and usage metadata exists
 	if rs.usageService != nil && adaptiveResp.UsageMetadata != nil {
-		apiKeyInterface := c.Locals("api_key")
-		if apiKey, ok := apiKeyInterface.(*models.APIKey); ok && apiKey != nil {
+		if apiKey, ok := auth.GetAPIKey(c); ok && apiKey != nil {
 			inputTokens := int(adaptiveResp.UsageMetadata.PromptTokenCount)
 			outputTokens := int(adaptiveResp.UsageMetadata.CandidatesTokenCount)
 
@@ -99,7 +99,7 @@ func (rs *ResponseService) HandleStreamingResponse(
 	fiberlog.Infof("[%s] Starting streaming response processing", requestID)
 
 	// Extract API key from context
-	apiKey, _ := c.Locals("api_key").(*models.APIKey)
+	apiKey, _ := auth.GetAPIKey(c)
 
 	// Use the proper Gemini streaming handler from the stream package
 	return handlers.HandleGemini(c, streamIter, requestID, provider, cacheSource, model, endpoint, rs.usageService, apiKey)
