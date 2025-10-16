@@ -49,8 +49,8 @@ const (
 
 type ProjectMember struct {
 	ID        uint              `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID    string            `gorm:"not null;index;type:varchar(255)" json:"user_id"`
-	ProjectID uint              `gorm:"not null;index" json:"project_id"`
+	UserID    string            `gorm:"not null;index;type:varchar(255);uniqueIndex:idx_user_project" json:"user_id"`
+	ProjectID uint              `gorm:"not null;index;uniqueIndex:idx_user_project" json:"project_id"`
 	Role      ProjectMemberRole `gorm:"not null;type:varchar(50)" json:"role"`
 	CreatedAt time.Time         `gorm:"not null;autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time         `gorm:"not null;autoUpdateTime" json:"updated_at"`
@@ -147,7 +147,7 @@ type OrganizationUpdateRequest struct {
 
 type AddOrganizationMemberRequest struct {
 	UserID string `json:"user_id" validate:"required"`
-	Role   string `json:"role" validate:"required,oneof=owner admin member"`
+	Role   string `json:"role" validate:"required,oneof=admin member"`
 }
 
 type UserCreateRequest struct {

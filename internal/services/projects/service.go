@@ -61,6 +61,7 @@ func (s *Service) CreateProject(ctx context.Context, userID string, req *models.
 			return fmt.Errorf("failed to create project: %w", err)
 		}
 
+		// Add creator as owner
 		owner := &models.ProjectMember{
 			UserID:    userID,
 			ProjectID: project.ID,

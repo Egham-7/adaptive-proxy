@@ -176,11 +176,11 @@ func (h *ClerkWebhookHandler) handleOrganizationMembershipCreated(c *fiber.Ctx, 
 	userID := membershipData.PublicUserData.UserID
 	organizationID := membershipData.Organization.ID
 
-	// Add the new org admin to all existing projects in the organization
+	// Add the new org admin to all existing projects in the organization as owner
 	// This uses the projects service which has access to the DB
 	// Note: We pass the projects service through the handler during initialization
 	if h.projectsService != nil {
-		err := h.projectsService.AddUserToAllOrgProjects(c.Context(), userID, organizationID, models.ProjectMemberRoleAdmin)
+		err := h.projectsService.AddUserToAllOrgProjects(c.Context(), userID, organizationID, models.ProjectMemberRoleOwner)
 		if err != nil {
 			// Log error but don't fail the webhook - lazy auth will handle it
 			fmt.Printf("Warning: failed to add org admin %s to projects in org %s: %v\n", userID, organizationID, err)
@@ -205,8 +205,8 @@ func (h *ClerkWebhookHandler) handleOrganizationMembershipUpdated(c *fiber.Ctx, 
 
 	// Check the new role
 	if membershipData.Role == "org:admin" {
-		// Promoted to admin - add to all projects
-		err := h.projectsService.AddUserToAllOrgProjects(c.Context(), userID, organizationID, models.ProjectMemberRoleAdmin)
+		// Promoted to admin - add to all projects as owner
+		err := h.projectsService.AddUserToAllOrgProjects(c.Context(), userID, organizationID, models.ProjectMemberRoleOwner)
 		if err != nil {
 			// Log error but don't fail the webhook - lazy auth will handle it
 			fmt.Printf("Warning: failed to add promoted admin %s to projects in org %s: %v\n", userID, organizationID, err)
