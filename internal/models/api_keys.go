@@ -78,24 +78,24 @@ const (
 )
 
 type APIKeyUsage struct {
-	ID           uint   `gorm:"primaryKey;autoIncrement"`
-	APIKeyID     uint   `gorm:"index"`
-	Endpoint     string `gorm:"index"`
-	Provider     string
-	Model        string
-	TokensInput  int
-	TokensOutput int
-	TokensTotal  int
-	Cost         float64
-	Currency     string
-	StatusCode   int
-	LatencyMs    int
-	Metadata     string
-	RequestID    string `gorm:"index"`
-	UserAgent    string
-	IPAddress    string
-	ErrorMessage string
-	CreatedAt    time.Time `gorm:"autoCreateTime;index"`
+	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	APIKeyID     uint      `gorm:"index" json:"api_key_id"`
+	Endpoint     string    `gorm:"index" json:"endpoint"`
+	Provider     string    `json:"provider"`
+	Model        string    `json:"model"`
+	TokensInput  int       `json:"tokens_input"`
+	TokensOutput int       `json:"tokens_output"`
+	TokensTotal  int       `json:"tokens_total"`
+	Cost         float64   `json:"cost"`
+	Currency     string    `json:"currency"`
+	StatusCode   int       `json:"status_code"`
+	LatencyMs    int       `json:"latency_ms"`
+	Metadata     string    `json:"metadata,omitempty"`
+	RequestID    string    `gorm:"index" json:"request_id"`
+	UserAgent    string    `json:"user_agent"`
+	IPAddress    string    `json:"ip_address"`
+	ErrorMessage string    `json:"error_message,omitempty"`
+	CreatedAt    time.Time `gorm:"autoCreateTime;index" json:"timestamp"`
 }
 
 func (APIKeyUsage) TableName() string {
